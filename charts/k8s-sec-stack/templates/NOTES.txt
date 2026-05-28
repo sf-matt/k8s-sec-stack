@@ -1,0 +1,27 @@
+k8s-sec-stack deployed.
+
+Components enabled:
+{{- if .Values.falco.enabled }}
+  ✓ Falco (runtime threat detection)
+{{- end }}
+{{- if .Values.falcosidekick.enabled }}
+  ✓ falcosidekick → {{ .Values.falcosidekick.config.webhook.address }}
+{{- end }}
+{{- if .Values.trivyOperator.enabled }}
+  ✓ trivy-operator (VulnerabilityReport, ConfigAuditReport CRDs)
+{{- end }}
+{{- if .Values.kubescapeOperator.enabled }}
+  ✓ kubescape-operator (ClusterComplianceReport CRDs)
+{{- end }}
+{{- if .Values.kyverno.enabled }}
+  ✓ Kyverno (PolicyReport CRDs)
+{{- end }}
+
+Check CRD data:
+  kubectl get vulnerabilityreports -A
+  kubectl get clusterconfigauditreports -A
+  kubectl get clustercompliancereports -A
+  kubectl get policyreports -A
+
+Next: run the MCP server against this cluster.
+  cd mcp-server && uv run k8s-sec-mcp

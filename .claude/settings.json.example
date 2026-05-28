@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "k8s-sec-mcp": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--project", "mcp-server", "k8s-sec-mcp"],
+      "cwd": "<REPO_ROOT>",
+      "env": {
+        "FALCO_SINK_URL": "http://<NODE_IP>:32080"
+      }
+    }
+  }
+}

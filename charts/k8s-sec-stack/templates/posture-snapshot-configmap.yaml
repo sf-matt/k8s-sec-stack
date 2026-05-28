@@ -1,0 +1,144 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: posture-snapshot-script
+  namespace: {{ .Release.Namespace }}
+data:
+  snapshot.py: |
+    #!/usr/bin/env python3
+    """Daily posture snapshot — reads trivy/kubescape/kyverno CRDs, POSTs to event sink."""
+
+    import json
+    import os
+    import ssl
+    import sys
+    from datetime import datetime, timezone
+    from urllib.request import Request, urlopen
+
+    SINK_URL   = os.environ.get("FALCO_SINK_URL", "http://mcp-event-sink.security.svc.cluster.local:8080")
+    TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    CA_PATH    = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    K8S_HOST   = os.environ.get("KUBERNETES_SERVICE_HOST", "kubernetes.default.svc")
+    K8S_PORT   = os.environ.get("KUBERNETES_SERVICE_PORT", "443")
+    K8S_BASE   = f"https://{K8S_HOST}:{K8S_PORT}"
+
+
+    def _ssl_ctx():
+        ctx = ssl.create_default_context(cafile=CA_PATH)
+        return ctx
+
+
+    def k8s_get(path):
+        with open(TOKEN_PATH) as f:
+            token = f.read().strip()
+        req = Request(f"{K8S_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
+        with urlopen(req, context=_ssl_ctx(), timeout=30) as resp:
+            return json.loads(resp.read())
+
+
+    def snap_trivy(now):
+        snapshots = []
+        try:
+            raw = k8s_get("/apis/aquasecurity.github.io/v1alpha1/vulnerabilityreports")
+            counts: dict = {}
+            for item in raw.get("items", []):
+                ns = item.get("metadata", {}).get("namespace", "unknown")
+                for v in item.get("report", {}).get("vulnerabilities", []):
+                    sev = v.get("severity", "UNKNOWN").upper()
+                    key = (ns, sev)
+                    counts[key] = counts.get(key, 0) + 1
+
+            for (ns, sev), cnt in counts.items():
+                snapshots.append({
+                    "snapped_at": now,
+                    "tool": "trivy",
+                    "namespace": ns,
+                    "metric": f"vuln_{sev.lower()}",
+                    "value": cnt,
+                })
+            print(f"trivy: {len(snapshots)} records", flush=True)
+        except Exception as e:
+            print(f"trivy snapshot failed: {e}", file=sys.stderr)
+        return snapshots
+
+
+    def snap_kubescape(now):
+        snapshots = []
+        try:
+            raw = k8s_get("/apis/aquasecurity.github.io/v1alpha1/clustercompliancereports")
+            for item in raw.get("items", []):
+                name = item.get("metadata", {}).get("name", "")
+                framework = item.get("spec", {}).get("compliance", {}).get("name", name)
+                summary = item.get("status", {}).get("summaryReport", {})
+                passed  = summary.get("passCount", 0)
+                failed  = summary.get("failCount", 0)
+                total   = passed + failed
+                score   = round(passed / total * 100, 1) if total > 0 else 0.0
+                snapshots.append({
+                    "snapped_at": now,
+                    "tool": "kubescape",
+                    "namespace": None,
+                    "metric": "compliance_score",
+                    "value": score,
+                    "labels": {"framework": framework, "pass": passed, "fail": failed},
+                })
+            print(f"kubescape: {len(snapshots)} records", flush=True)
+        except Exception as e:
+            print(f"kubescape snapshot failed: {e}", file=sys.stderr)
+        return snapshots
+
+
+    def snap_kyverno(now):
+        snapshots = []
+        try:
+            counts: dict = {}
+            for plural in ("policyreports", "clusterpolicyreports"):
+                raw = k8s_get(f"/apis/wgpolicyk8s.io/v1alpha2/{plural}")
+                for item in raw.get("items", []):
+                    ns = item.get("metadata", {}).get("namespace") or "cluster"
+                    for r in item.get("results", []):
+                        result = r.get("result", "")
+                        if result in ("fail", "warn", "pass"):
+                            key = (ns, f"policy_{result}")
+                            counts[key] = counts.get(key, 0) + 1
+
+            for (ns, metric), cnt in counts.items():
+                snapshots.append({
+                    "snapped_at": now,
+                    "tool": "kyverno",
+                    "namespace": ns,
+                    "metric": metric,
+                    "value": cnt,
+                })
+            print(f"kyverno: {len(snapshots)} records", flush=True)
+        except Exception as e:
+            print(f"kyverno snapshot failed: {e}", file=sys.stderr)
+        return snapshots
+
+
+    def main():
+        now = datetime.now(timezone.utc).isoformat()
+
+        snapshots = (
+            snap_trivy(now)
+            + snap_kubescape(now)
+            + snap_kyverno(now)
+        )
+
+        if not snapshots:
+            print("no snapshots collected", file=sys.stderr)
+            sys.exit(1)
+
+        payload = json.dumps(snapshots).encode()
+        req = Request(
+            f"{SINK_URL}/posture/snapshot",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(req, timeout=15) as resp:
+            print(f"posted {len(snapshots)} snapshots → {resp.status}", flush=True)
+
+
+    if __name__ == "__main__":
+        main()

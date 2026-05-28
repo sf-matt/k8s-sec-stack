@@ -1,0 +1,42 @@
+# Deliberately insecure workload for testing the stack.
+# Triggers: Falco shell-in-container rules, trivy-operator CVE findings,
+# Kyverno policy violations (privileged, no resource limits, latest tag).
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    app.kubernetes.io/part-of: k8s-sec-stack-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnerable-app
+  namespace: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vulnerable-app
+  template:
+    metadata:
+      labels:
+        app: vulnerable-app
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.21          # known CVEs in older nginx
+          # No resource limits — triggers Kyverno require-limits policy
+          securityContext:
+            privileged: true         # triggers Falco + Kyverno disallow-privileged
+            runAsNonRoot: false
+          command: ["/bin/sh", "-c"]
+          args:
+            # Spawns a shell periodically — triggers Falco "Terminal shell in container"
+            - |
+              nginx &
+              while true; do
+                /bin/sh -c "echo heartbeat" > /dev/null
+                sleep 60
+              done

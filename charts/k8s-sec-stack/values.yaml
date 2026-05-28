@@ -1,0 +1,125 @@
+# Global toggles — flip any to false to exclude from the install
+falco:
+  enabled: true
+  driver:
+    kind: modern_ebpf
+  falco:
+    json_output: true
+    json_include_output_fields_property: true
+    http_output:
+      enabled: true
+      url: "http://k8s-sec-stack-falcosidekick.security.svc.cluster.local:2801"
+    grpc:
+      enabled: false
+    grpc_output:
+      enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+
+falcosidekick:
+  enabled: true
+  service:
+    type: NodePort
+    nodePort: 32801
+  config:
+    webhook:
+      address: "http://mcp-event-sink.security.svc.cluster.local:8080/events"
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+trivyOperator:
+  enabled: true
+  trivy:
+    severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+  operator:
+    scanJobsConcurrentLimit: 2
+    # Keep reports for 7 days — default 24h is too short for dev
+    scannerReportTTL: "168h"
+    configAuditScannerEnabled: true
+    rbacAssessmentScannerEnabled: true
+    infraAssessmentScannerEnabled: true
+    exposedSecretScannerEnabled: true
+    sbomGenerationEnabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+kubescapeOperator:
+  enabled: true
+  clusterName: "local-dev"
+  capabilities:
+    continuousScan: enable
+  # Reduced for single-node dev cluster
+  kubevuln:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1500Mi
+  kubescape:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  storage:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+eventSink:
+  nodePort: 32080
+
+kyverno:
+  enabled: true
+  admissionController:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 384Mi
+  backgroundController:
+    enabled: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+  cleanupController:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+  reportsController:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi

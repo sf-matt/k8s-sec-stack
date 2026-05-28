@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: posture-snapshot
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: "0 1 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: posture-snapshot
+          restartPolicy: OnFailure
+          containers:
+            - name: snapshot
+              image: python:3.12-slim
+              command: ["python", "/app/snapshot.py"]
+              env:
+                - name: FALCO_SINK_URL
+                  value: "http://mcp-event-sink.{{ .Release.Namespace }}.svc.cluster.local:8080"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65534
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: script
+                  mountPath: /app
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+          volumes:
+            - name: script
+              configMap:
+                name: posture-snapshot-script
