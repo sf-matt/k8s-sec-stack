@@ -1,0 +1,20 @@
+# Violates: disallow-privileged-containers / privileged-containers
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fail-privileged
+  namespace: test-ns
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25
+      resources:
+        limits:
+          cpu: "100m"
+          memory: "128Mi"
+      securityContext:
+        privileged: true                  # VIOLATION
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 1000
+        readOnlyRootFilesystem: true

@@ -50,4 +50,4 @@ Then restart Claude Code. The skills `/triage-threat`, `/posture-check`, and `/f
 
 ## Blog series
 
-Companion posts live in `blog/` and publish to [cloudsecburrito.com](https://cloudsecburrito.com).
+Companion posts publish to [cloudsecburrito.com](https://cloudsecburrito.com).

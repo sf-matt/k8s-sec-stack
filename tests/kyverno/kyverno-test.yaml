@@ -1,0 +1,109 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: baseline-policy-suite
+policies:
+- ../../policies/baseline/disallow-privileged.yaml
+- ../../policies/baseline/disallow-privilege-escalation.yaml
+- ../../policies/baseline/disallow-host-namespaces.yaml
+- ../../policies/baseline/disallow-latest-tag.yaml
+- ../../policies/baseline/require-non-root.yaml
+- ../../policies/baseline/require-resource-limits.yaml
+- ../../policies/baseline/require-ro-rootfs.yaml
+resources:
+- resources/pass-pod.yaml
+- resources/fail-privileged.yaml
+- resources/fail-privilege-escalation.yaml
+- resources/fail-host-namespaces.yaml
+- resources/fail-latest-tag.yaml
+- resources/fail-non-root.yaml
+- resources/fail-no-limits.yaml
+- resources/fail-writable-rootfs.yaml
+results:
+# pass-pod: satisfies all baseline policies simultaneously
+- policy: disallow-privileged-containers
+  rule: privileged-containers
+  kind: Pod
+  resources:
+  - pass-pod
+  result: pass
+- policy: disallow-privilege-escalation
+  rule: privilege-escalation
+  kind: Pod
+  resources:
+  - pass-pod
+  result: pass
+- policy: disallow-host-namespaces
+  rule: host-namespaces
+  kind: Pod
+  resources:
+  - pass-pod
+  result: pass
+- policy: disallow-latest-tag
+  rule: latest-tag
+  kind: Pod
+  resources:
+  - pass-pod
+  result: pass
+- policy: require-non-root
+  rule: non-root-user
+  kind: Pod
+  resources:
+  - pass-pod
+  result: pass
+- policy: require-resource-limits
+  rule: resource-limits
+  kind: Pod
+  resources:
+  - pass-pod
+  result: pass
+- policy: require-ro-rootfs
+  rule: ro-rootfs
+  kind: Pod
+  resources:
+  - pass-pod
+  result: pass
+
+# violation fixtures: each fails exactly one policy
+- policy: disallow-privileged-containers
+  rule: privileged-containers
+  kind: Pod
+  resources:
+  - fail-privileged
+  result: fail
+- policy: disallow-privilege-escalation
+  rule: privilege-escalation
+  kind: Pod
+  resources:
+  - fail-privilege-escalation
+  result: fail
+- policy: disallow-host-namespaces
+  rule: host-namespaces
+  kind: Pod
+  resources:
+  - fail-host-namespaces
+  result: fail
+- policy: disallow-latest-tag
+  rule: latest-tag
+  kind: Pod
+  resources:
+  - fail-latest-tag
+  result: fail
+- policy: require-non-root
+  rule: non-root-user
+  kind: Pod
+  resources:
+  - fail-non-root
+  result: fail
+- policy: require-resource-limits
+  rule: resource-limits
+  kind: Pod
+  resources:
+  - fail-no-limits
+  result: fail
+- policy: require-ro-rootfs
+  rule: ro-rootfs
+  kind: Pod
+  resources:
+  - fail-writable-rootfs
+  result: fail

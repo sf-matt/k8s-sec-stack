@@ -95,15 +95,42 @@ eventSink:
 
 kyverno:
   enabled: true
+
+  # --- Admission controller -------------------------------------------------
+  # 3 replicas is the production minimum. The chart auto-enables a
+  # PodDisruptionBudget (minAvailable: 1) when replicas > 1.
+  #
+  # Anti-affinity defaults to preferredDuringSchedulingIgnoredDuringExecution —
+  # replicas spread across nodes where possible without hard-blocking scheduling.
+  # If your cluster has dedicated security-tooling nodes, add a nodeSelector or
+  # switch to requiredDuringScheduling to enforce strict separation.
+  #
+  # Reduce to replicas: 1 for local dev clusters with limited nodes.
   admissionController:
-    replicas: 1
+    replicas: 3
     resources:
       requests:
-        cpu: 50m
-        memory: 64Mi
+        cpu: 250m
+        memory: 256Mi
       limits:
-        cpu: 500m
-        memory: 384Mi
+        cpu: 1000m
+        memory: 512Mi
+
+  # --- Webhook failure policy -----------------------------------------------
+  # forceFailurePolicyIgnore: false (default) means the webhook returns Error
+  # if Kyverno is unavailable — no pod is admitted without policy evaluation.
+  # This is the correct posture for production: security guarantees hold even
+  # during degraded states.
+  #
+  # At 3 replicas, a rolling restart leaves 2 healthy pods serving the webhook,
+  # so Fail policy never triggers during normal operations.
+  #
+  # Set enabled: true only on single-replica dev clusters where a Kyverno
+  # restart would otherwise block all workload deployments.
+  features:
+    forceFailurePolicyIgnore:
+      enabled: false
+
   backgroundController:
     enabled: true
     resources:

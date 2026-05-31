@@ -44,6 +44,9 @@ An OSS Kubernetes security reference stack. Four tools (Falco, trivy-operator, k
 - `/triage-threat` — full kill chain triage of a Falco alert: runtime event → workload context → CVEs → misconfig → network exposure → lateral movement → RBAC blast radius → Threat Score + MONITOR/ISOLATE/KILL
 - `/posture-check` — compliance framework scores (kubescape) + Kyverno policy violation audit
 - `/fix-image` — image remediation from VulnerabilityReport data
+- `/kyverno-suggest` — survey kubescape + trivy findings (or take user intent directly), map to Kyverno PSS library policies, and output a numbered selection list for /kyverno-create-policy
+- `/kyverno-create-policy` — generate annotated ClusterPolicy YAML from a policy name, intent description, or selection from /kyverno-suggest; handles mutation complements and file paths
+- `/kyverno-create-exception` — generate a namespace-scoped PolicyException for a workload with a legitimate bypass need; requires justification, scopes as tightly as possible
 
 ## Layout
 

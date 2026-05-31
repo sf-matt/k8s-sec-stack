@@ -1,0 +1,17 @@
+# Violates: require-resource-limits / resource-limits
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fail-no-limits
+  namespace: test-ns
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25
+      # no resources.limits               # VIOLATION
+      securityContext:
+        privileged: false
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 1000
+        readOnlyRootFilesystem: true

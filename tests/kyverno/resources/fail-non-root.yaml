@@ -1,0 +1,23 @@
+# Violates: require-non-root / non-root-user
+# Policy uses anyPattern — all four patterns must fail simultaneously.
+# None of spec.securityContext.runAsNonRoot/runAsUser are set (no pod-level context).
+# Container-level runAsNonRoot: false and runAsUser: 0 defeat the container patterns.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fail-non-root
+  namespace: test-ns
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25
+      resources:
+        limits:
+          cpu: "100m"
+          memory: "128Mi"
+      securityContext:
+        privileged: false
+        allowPrivilegeEscalation: false
+        runAsNonRoot: false               # VIOLATION — defeats anyPattern[2]
+        runAsUser: 0                      # VIOLATION — defeats anyPattern[3]
+        readOnlyRootFilesystem: true

@@ -1,0 +1,20 @@
+# Violates: require-ro-rootfs / ro-rootfs
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fail-writable-rootfs
+  namespace: test-ns
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25
+      resources:
+        limits:
+          cpu: "100m"
+          memory: "128Mi"
+      securityContext:
+        privileged: false
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 1000
+        readOnlyRootFilesystem: false     # VIOLATION
