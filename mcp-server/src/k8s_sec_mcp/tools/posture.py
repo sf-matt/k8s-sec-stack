@@ -29,21 +29,24 @@ async def list_compliance_reports(framework: str = "") -> str:
             continue
 
         spec = item.get("spec", {})
-        summary = item.get("status", {}).get("summaryReport", {})
+        status = item.get("status", {})
+        counts = status.get("summary", {})
+        summary_report = status.get("summaryReport", {})
 
         results.append({
             "name": name,
             "framework": spec.get("compliance", {}).get("name", name),
-            "pass": summary.get("passCount", 0),
-            "fail": summary.get("failCount", 0),
+            "pass": counts.get("passCount", 0),
+            "fail": counts.get("failCount", 0),
             "failing_controls": [
                 {
                     "id": c.get("id"),
                     "name": c.get("name"),
                     "severity": c.get("severity"),
-                    "failed_resources": c.get("failedResources", 0),
+                    "failed_resources": c.get("totalFail", 0),
                 }
-                for c in summary.get("topWorkloadFindings", [])
+                for c in summary_report.get("controlCheck", [])
+                if c.get("totalFail", 0) > 0
             ],
         })
 
