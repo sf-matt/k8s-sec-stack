@@ -5,7 +5,7 @@ import mcp.types as types
 from mcp.server import Server
 
 from k8s_sec_mcp.tools.vulns import list_vuln_reports
-from k8s_sec_mcp.tools.posture import list_compliance_reports, list_policy_violations
+from k8s_sec_mcp.tools.posture import list_compliance_reports, list_policy_violations, list_policy_summary
 from k8s_sec_mcp.tools.runtime import list_runtime_events, list_runtime_trends, list_posture_trends
 from k8s_sec_mcp.tools.trivy import (
     list_config_audit,
@@ -60,10 +60,20 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="list_policy_summary",
+            description=(
+                "Summarise Kyverno PolicyReports by policy. Returns one row per policy with "
+                "fail/pass/warn counts and the policy mode (audit/enforce). Use this instead of "
+                "list_policy_violations when you only need a health snapshot — it is far smaller."
+            ),
+            inputSchema={"type": "object", "properties": {}, "required": []},
+        ),
+        types.Tool(
             name="list_policy_violations",
             description=(
-                "List PolicyReport violations from Kyverno. "
-                "Returns policy name, rule, resource, and result (fail/warn/pass)."
+                "List individual PolicyReport violations from Kyverno. "
+                "Returns one record per resource per policy — use for targeted investigation of a "
+                "specific policy or namespace. For a cluster-wide health snapshot use list_policy_summary."
             ),
             inputSchema={
                 "type": "object",
@@ -282,6 +292,8 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         result = await list_vuln_reports(**arguments)
     elif name == "list_compliance_reports":
         result = await list_compliance_reports(**arguments)
+    elif name == "list_policy_summary":
+        result = await list_policy_summary()
     elif name == "list_policy_violations":
         result = await list_policy_violations(**arguments)
     elif name == "list_runtime_events":

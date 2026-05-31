@@ -53,6 +53,52 @@ async def list_compliance_reports(framework: str = "") -> str:
     return json.dumps(results, indent=2)
 
 
+async def list_policy_summary() -> str:
+    api = _k8s_client()
+
+    cluster_raw = api.list_cluster_custom_object(
+        group="wgpolicyk8s.io", version="v1alpha2", plural="clusterpolicyreports"
+    )
+    ns_raw = api.list_cluster_custom_object(
+        group="wgpolicyk8s.io", version="v1alpha2", plural="policyreports"
+    )
+    items = cluster_raw.get("items", []) + ns_raw.get("items", [])
+
+    counts: dict[str, dict[str, int]] = {}
+    for item in items:
+        for r in item.get("results", []):
+            policy = r.get("policy", "unknown")
+            result = r.get("result", "")
+            if policy not in counts:
+                counts[policy] = {"fail": 0, "pass": 0, "warn": 0}
+            if result in counts[policy]:
+                counts[policy][result] += 1
+
+    try:
+        cp_raw = api.list_cluster_custom_object(
+            group="kyverno.io", version="v1", plural="clusterpolicies"
+        )
+        modes = {
+            item["metadata"]["name"]: item.get("spec", {}).get("validationFailureAction", "audit").lower()
+            for item in cp_raw.get("items", [])
+        }
+    except Exception:
+        modes = {}
+
+    results = [
+        {
+            "policy": policy,
+            "mode": modes.get(policy, "unknown"),
+            "fail": c["fail"],
+            "pass": c["pass"],
+            "warn": c["warn"],
+        }
+        for policy, c in sorted(counts.items(), key=lambda x: x[1]["fail"], reverse=True)
+    ]
+
+    return json.dumps(results, indent=2)
+
+
 async def list_policy_violations(
     namespace: str = "all",
     result: str = "fail",

@@ -9,7 +9,7 @@ description: >-
 tools:
   - list_compliance_reports
   - list_config_audit
-  - list_policy_violations
+  - list_policy_summary
   - list_vuln_reports
   - list_workloads
 ---
@@ -46,8 +46,9 @@ Make all of these calls in parallel:
 2. `list_config_audit(severity=HIGH)` — trivy per-workload misconfig checks.
    Extract KSV check IDs and affected resource names.
 
-3. `list_policy_violations(result=all)` — what Kyverno already tracks.
-   Distinguish: Audit mode with active violations (enforce gap) vs clean.
+3. `list_policy_summary` — what Kyverno already tracks. Returns one row per
+   policy with fail/pass/warn counts and mode (audit/enforce). Use this to
+   distinguish: Audit mode with active violations (enforce gap) vs clean.
 
 4. `list_vuln_reports(severity=CRITICAL)` — image CVE findings.
    Extract image:tag values with CRITICAL CVEs where fixedVersion is empty.
@@ -105,11 +106,12 @@ one finding directly maps to it.
 
 ### Phase 3 — Status each candidate
 
-For each policy surfaced by the mapping, assign a status:
+For each policy surfaced by the mapping, assign a status using the
+`list_policy_summary` results (mode + fail count):
 
-- ✅ **Covered** — policy exists in PolicyReport with no active violations
-- ⚠️ **Gap** — kubescape/trivy finds violations, no Kyverno policy yet
-- 🔶 **Audit→Enforce** — policy exists in Audit mode with active violations (ready to flip)
+- ✅ **Covered** — policy exists with mode=audit/enforce and fail=0
+- ⚠️ **Gap** — kubescape/trivy finds violations, policy absent from summary
+- 🔶 **Audit→Enforce** — policy exists with mode=audit and fail > 0 (ready to flip)
 
 ---
 
