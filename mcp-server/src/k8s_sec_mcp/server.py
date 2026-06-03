@@ -4,16 +4,17 @@ import mcp.server.stdio
 import mcp.types as types
 from mcp.server import Server
 
-from k8s_sec_mcp.tools.vulns import list_vuln_reports
+from k8s_sec_mcp.tools.vulns import list_vuln_reports, list_vuln_summary
 from k8s_sec_mcp.tools.posture import list_compliance_reports, list_policy_violations, list_policy_summary
 from k8s_sec_mcp.tools.runtime import list_runtime_events, list_runtime_trends, list_posture_trends
 from k8s_sec_mcp.tools.trivy import (
     list_config_audit,
+    list_config_audit_summary,
     list_exposed_secrets,
     list_rbac_issues,
     list_infra_issues,
 )
-from k8s_sec_mcp.tools.k8s import get_pod_status, list_workloads, list_network_exposure, list_network_policies
+from k8s_sec_mcp.tools.k8s import get_pod_status, list_workloads, list_image_registry_signals, list_network_exposure, list_network_policies
 
 app = Server("k8s-sec-mcp")
 
@@ -38,6 +39,26 @@ async def list_tools() -> list[types.Tool]:
                         "description": "Minimum severity to include",
                     },
                     "image": {"type": "string", "description": "Filter by image name substring"},
+                },
+                "required": [],
+            },
+        ),
+        types.Tool(
+            name="list_vuln_summary",
+            description=(
+                "Deduplicated vulnerability summary per image. Splits unfixable CVEs (no fixedVersion) "
+                "from fixable ones. Use for policy decisions: unfixable → block-cve-images policy, "
+                "fixable → /fix-image. Much smaller than list_vuln_reports — one row per image."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "severity": {
+                        "type": "string",
+                        "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ALL"],
+                        "description": "Minimum severity to include (default CRITICAL)",
+                    },
                 },
                 "required": [],
             },
@@ -148,6 +169,26 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="list_config_audit_summary",
+            description=(
+                "Config audit findings grouped by KSV check ID with affected workload counts and samples. "
+                "Use this instead of list_config_audit when you need a policy gap overview — returns one row "
+                "per KSV ID rather than one row per workload. Much smaller output."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "severity": {
+                        "type": "string",
+                        "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ALL"],
+                        "description": "Minimum severity to include (default HIGH)",
+                    },
+                },
+                "required": [],
+            },
+        ),
+        types.Tool(
             name="list_config_audit",
             description=(
                 "List ConfigAuditReport failures from trivy-operator. "
@@ -236,6 +277,16 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="list_image_registry_signals",
+            description=(
+                "Unique images across all workloads with registry origin and tag info. "
+                "Flags images using :latest or no tag. Use for image hygiene policy decisions "
+                "(disallow-image-tags, restrict-image-registries) instead of list_workloads — "
+                "much smaller output, purpose-built for policy gap analysis."
+            ),
+            inputSchema={"type": "object", "properties": {}, "required": []},
+        ),
+        types.Tool(
             name="list_network_exposure",
             description=(
                 "List Services and Ingresses — which workloads are reachable and how. "
@@ -290,6 +341,8 @@ async def list_tools() -> list[types.Tool]:
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     if name == "list_vuln_reports":
         result = await list_vuln_reports(**arguments)
+    elif name == "list_vuln_summary":
+        result = await list_vuln_summary(**arguments)
     elif name == "list_compliance_reports":
         result = await list_compliance_reports(**arguments)
     elif name == "list_policy_summary":
@@ -302,6 +355,8 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         result = await list_runtime_trends(**arguments)
     elif name == "list_posture_trends":
         result = await list_posture_trends(**arguments)
+    elif name == "list_config_audit_summary":
+        result = await list_config_audit_summary(**arguments)
     elif name == "list_config_audit":
         result = await list_config_audit(**arguments)
     elif name == "list_exposed_secrets":
@@ -314,6 +369,8 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         result = await get_pod_status(**arguments)
     elif name == "list_workloads":
         result = await list_workloads(**arguments)
+    elif name == "list_image_registry_signals":
+        result = await list_image_registry_signals()
     elif name == "list_network_exposure":
         result = await list_network_exposure(**arguments)
     elif name == "list_network_policies":

@@ -85,7 +85,6 @@ async def list_workloads(namespace: str = "all") -> str:
             "kind": "Deployment",
             "namespace": d.metadata.namespace,
             "name": d.metadata.name,
-            "labels": d.metadata.labels or {},
             "replicas": {"desired": d.spec.replicas, "ready": (d.status.ready_replicas or 0)},
             "containers": _container_summary(d.spec.template.spec.containers),
         })
@@ -97,7 +96,6 @@ async def list_workloads(namespace: str = "all") -> str:
             "kind": "DaemonSet",
             "namespace": ds.metadata.namespace,
             "name": ds.metadata.name,
-            "labels": ds.metadata.labels or {},
             "containers": _container_summary(ds.spec.template.spec.containers),
         })
 
@@ -110,11 +108,68 @@ async def list_workloads(namespace: str = "all") -> str:
             "kind": "Pod",
             "namespace": p.metadata.namespace,
             "name": p.metadata.name,
-            "labels": p.metadata.labels or {},
             "phase": p.status.phase,
             "containers": _container_summary(p.spec.containers),
         })
 
+    return json.dumps(results, indent=2)
+
+
+async def list_image_registry_signals() -> str:
+    """Unique images across all workloads with registry and tag info for image hygiene policy decisions.
+    Flags images using :latest or no tag, and surfaces the registry origin of each image.
+    Use this instead of list_workloads when you only need image hygiene signals."""
+    apps, core, _ = _clients()
+
+    seen: set[str] = set()
+    results = []
+
+    def _parse(image: str, namespace: str) -> None:
+        if image in seen:
+            return
+        seen.add(image)
+
+        # Split off digest if present (sha256:...)
+        img = image.split("@")[0] if "@" in image else image
+
+        # Split tag
+        last_part = img.split("/")[-1]
+        if ":" in last_part:
+            tag = img.rsplit(":", 1)[-1]
+            repo = img.rsplit(":", 1)[0]
+        else:
+            tag = None
+            repo = img
+
+        # Infer registry — explicit if first segment contains a dot/colon or is localhost
+        parts = repo.split("/")
+        registry = parts[0] if ("." in parts[0] or ":" in parts[0] or parts[0] == "localhost") else "docker.io"
+
+        results.append({
+            "image": image,
+            "registry": registry,
+            "tag": tag,
+            "latest_or_untagged": tag is None or tag == "latest",
+            "sample_namespace": namespace,
+        })
+
+    for d in apps.list_deployment_for_all_namespaces().items:
+        ns = d.metadata.namespace
+        for c in (d.spec.template.spec.containers or []) + (d.spec.template.spec.init_containers or []):
+            _parse(c.image, ns)
+
+    for ds in apps.list_daemon_set_for_all_namespaces().items:
+        ns = ds.metadata.namespace
+        for c in (ds.spec.template.spec.containers or []) + (ds.spec.template.spec.init_containers or []):
+            _parse(c.image, ns)
+
+    for p in core.list_pod_for_all_namespaces().items:
+        if p.metadata.owner_references:
+            continue
+        for c in p.spec.containers or []:
+            _parse(c.image, p.metadata.namespace)
+
+    results.sort(key=lambda x: (not x["latest_or_untagged"], x["registry"], x["image"]))
     return json.dumps(results, indent=2)
 
 

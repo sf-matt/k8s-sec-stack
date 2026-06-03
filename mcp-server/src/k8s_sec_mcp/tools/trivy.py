@@ -81,6 +81,39 @@ async def list_config_audit(
     return json.dumps(results, indent=2)
 
 
+async def list_config_audit_summary(
+    namespace: str = "all",
+    severity: str = "HIGH",
+) -> str:
+    """Config audit findings grouped by KSV check ID with affected workload counts."""
+    api = _k8s_client()
+
+    items = []
+    if namespace == "all":
+        items += api.list_cluster_custom_object(GROUP, "v1alpha1", "configauditreports").get("items", [])
+        items += api.list_cluster_custom_object(GROUP, "v1alpha1", "clusterconfigauditreports").get("items", [])
+    else:
+        items += api.list_namespaced_custom_object(group=GROUP, version="v1alpha1", plural="configauditreports", namespace=namespace).get("items", [])
+
+    by_ksv: dict[str, dict] = {}
+    for item in items:
+        meta = item.get("metadata", {})
+        workload_ref = f"{meta.get('namespace', 'cluster')}/{meta.get('name', '')}"
+        for check in _checks_from_report(item.get("report", {}), severity):
+            cid = check["id"]
+            if cid not in by_ksv:
+                by_ksv[cid] = {"id": cid, "title": check["title"], "severity": check["severity"], "affected_workloads": 0, "sample": []}
+            by_ksv[cid]["affected_workloads"] += 1
+            if len(by_ksv[cid]["sample"]) < 3:
+                by_ksv[cid]["sample"].append(workload_ref)
+
+    results = sorted(
+        by_ksv.values(),
+        key=lambda c: (SEVERITY_ORDER.index(c["severity"].upper()) if c["severity"].upper() in SEVERITY_ORDER else 99, -c["affected_workloads"]),
+    )
+    return json.dumps(results, indent=2)
+
+
 async def list_exposed_secrets(
     namespace: str = "all",
 ) -> str:
