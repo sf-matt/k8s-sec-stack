@@ -17,10 +17,11 @@ An opinionated, fully open-source Kubernetes security reference stack covering p
 ```
 charts/          Helm umbrella chart — one install to deploy the full stack
 mcp-server/      MCP server exposing CRD data as Claude-readable tools
-skills/          Claude skill prompts (posture-check, triage-threat, fix-image)
-hack/            Local dev bootstrap (kind cluster, helm install)
+skills/          Claude skill prompts — six skills covering triage, posture, image remediation, and policy
+hack/            Bootstrap scripts (helm install, local MCP config generation)
 demo/            Deliberately vulnerable workloads for testing
 blog/            Draft posts for the companion blog series
+policies/        Generated policy + exception YAML — gitignored, lives locally only
 ```
 
 ## Prerequisites
@@ -42,11 +43,21 @@ kubectl apply -f demo/
 # 3. Generate local MCP + Claude Code config (run once per machine)
 ./hack/configure-local.sh
 
-# 4. Start the MCP server
-cd mcp-server && uv run k8s-sec-mcp
+# 4. Restart Claude Code from the project directory
 ```
 
-Then restart Claude Code. The skills `/triage-threat`, `/posture-check`, and `/fix-image` are available immediately.
+The MCP server starts automatically when Claude Code loads. Skills are available immediately.
+
+> **Note:** scan data takes ~5 minutes to populate after a fresh install. If `/kyverno-suggest` or `/posture-check` return nothing, wait a few minutes and try again — trivy-operator and kubescape run scan jobs in the background before results appear in CRDs.
+
+| Skill | What it does |
+|---|---|
+| `/triage-threat` | Full kill chain triage of a Falco alert |
+| `/posture-check` | Compliance scores + Kyverno violation audit |
+| `/fix-image` | Image remediation from VulnerabilityReport data |
+| `/kyverno-suggest` | Survey cluster findings, map to Kyverno policies |
+| `/kyverno-create-policy` | Generate annotated ClusterPolicy YAML |
+| `/kyverno-create-exception` | Generate scoped PolicyException with justification |
 
 ## Blog series
 
