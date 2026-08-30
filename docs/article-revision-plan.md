@@ -122,6 +122,8 @@ Provisional scope:
 
 Publication gate: Phase 1 and the core of Phase 3 in `docs/roadmap.md` must be complete, and resolved findings must contain verification evidence.
 
+Implementation note (2026-08-30, pending maintainer review): the Phase 1 branch now supplies the ClusterIP defaults, separate ingest/query tokens, bounded API, normalized-only retention default, restricted pod context, and NetworkPolicy manifests needed for this section. Do not describe the phase as complete in an article until a project image is published and selected by digest and live allow/deny behavior is verified with a policy-enforcing CNI.
+
 ## Claim matrix template
 
 Use this table during each revision. Every technical claim needs evidence or must be softened/removed.

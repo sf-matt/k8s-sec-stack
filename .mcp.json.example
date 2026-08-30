@@ -6,7 +6,8 @@
       "args": ["run", "--project", "mcp-server", "k8s-sec-mcp"],
       "cwd": "<REPO_ROOT>",
       "env": {
-        "FALCO_SINK_URL": "http://<NODE_IP>:32080"
+        "FALCO_SINK_URL": "http://127.0.0.1:8080",
+        "FALCO_SINK_TOKEN": "<QUERY_TOKEN_FROM_EVENT_SINK_SECRET>"
       }
     }
   }

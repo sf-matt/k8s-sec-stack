@@ -15,7 +15,8 @@ data:
     from datetime import datetime, timezone
     from urllib.request import Request, urlopen
 
-    SINK_URL   = os.environ.get("FALCO_SINK_URL", "http://mcp-event-sink.security.svc.cluster.local:8080")
+    SINK_URL   = os.environ.get("FALCO_SINK_URL", "http://mcp-event-sink:8080")
+    SINK_TOKEN = os.environ.get("EVENT_SINK_INGEST_TOKEN", "")
     TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
     CA_PATH    = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
     K8S_HOST   = os.environ.get("KUBERNETES_SERVICE_HOST", "kubernetes.default.svc")
@@ -130,10 +131,13 @@ data:
             sys.exit(1)
 
         payload = json.dumps(snapshots).encode()
+        headers = {"Content-Type": "application/json"}
+        if SINK_TOKEN:
+            headers["Authorization"] = f"Bearer {SINK_TOKEN}"
         req = Request(
             f"{SINK_URL}/posture/snapshot",
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         with urlopen(req, timeout=15) as resp:

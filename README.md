@@ -44,11 +44,20 @@ policies/        Generated policy + exception YAML — gitignored, lives locally
 # 2. Deploy vulnerable demo workloads (optional — exercises the full triage workflow)
 kubectl apply -f demo/
 
-# 3. Generate the current Claude Code MCP config (run once per machine)
+# 3. Generate authenticated local MCP settings (run once per install)
 ./hack/configure-local.sh
 
-# 4. Restart Claude Code from the project directory
+# 4. In a separate terminal, open the local-only sink access path
+kubectl -n security port-forward service/mcp-event-sink 8080:8080
+
+# 5. Restart your MCP client from the project directory
 ```
+
+The default chart exposes neither the event sink nor falcosidekick outside the
+cluster. `charts/k8s-sec-stack/values-local-dev.yaml` retains explicit NodePort
+settings for isolated disposable labs, but the port-forward path above is preferred.
+The generated local MCP configuration contains a query-only bearer token and must
+not be committed or shared.
 
 The MCP server starts automatically when Claude Code loads. Skills are available immediately.
 

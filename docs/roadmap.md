@@ -23,14 +23,16 @@ Goal: close the highest-risk trust-boundary gaps before expanding features.
 
 | Deliverable | Security link | Status | Exit evidence |
 |---|---|---|---|
-| Default event sink and falcosidekick services to ClusterIP | SEC-001, SEC-009 | planned | Default render has no NodePort; explicit dev values retain optional access |
-| Remove hard-coded release namespace addresses | SEC-006 | planned | Helm tests pass for at least two namespaces |
-| Harden event-sink pod and pin/package its image | SEC-002 | planned | Restricted security context checks and image build tests pass |
-| Add NetworkPolicies for the security namespace flows | SEC-001 | planned | Connectivity tests allow only expected producers/consumers |
-| Bound/validate sink routes, payloads, and queries | SEC-003 | planned | abuse and boundary test suite passes |
-| Make raw payload retention and retention days configurable | SEC-004 | planned | redaction/minimization and retention tests pass |
+| Default event sink and falcosidekick services to ClusterIP | SEC-001, SEC-009 | complete | Default full render has no NodePort; `values-local-dev.yaml` retains explicit optional access |
+| Remove hard-coded release namespace addresses | SEC-006 | complete | Isolated tests and full renders pass for `security` and `alternate-security` |
+| Harden event-sink pod and pin/package its image | SEC-002 | in progress | Restricted render tests pass and packaged source uses a pinned base; local image build is blocked by an unavailable Docker daemon, then publish and set a registry digest before closure |
+| Add NetworkPolicies for the security namespace flows | SEC-001 | in progress | Render tests verify selectors/default deny; live allow/deny tests under a policy-enforcing CNI remain |
+| Bound/validate sink routes, payloads, and queries | SEC-003 | complete | HTTP boundary suite covers auth, allowlists, schemas, size/range limits, and response bounds |
+| Make raw payload retention and retention days configurable | SEC-004 | complete | normalized-only default, opt-in redaction, and purge tests pass |
 
 Recommended implementation order: service defaults and namespace templating, then pod image/security context, then API validation/auth and NetworkPolicy. Keep each change small enough to review independently.
+
+Local implementation evidence (pending maintainer review): `python3 -m unittest discover -s event-sink/tests -v`, `python3 -m unittest discover -s tests/helm -v`, `helm lint charts/k8s-sec-stack`, and full `helm template` renders in two namespaces. Phase 1 is not globally complete until the image digest and live CNI connectivity gates above are satisfied.
 
 ## Phase 2 — Provider-neutral MCP foundation
 

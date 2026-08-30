@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified against repository: 2026-08-30 (`main` at `cb89914`)
+Last verified against repository: 2026-08-30 (`codex/phase1-event-sink-hardening`, pending maintainer review)
 
 ## System context
 
@@ -37,20 +37,22 @@ flowchart LR
 - Kyverno admission, background, cleanup, and report controllers;
 - the project-owned event sink and posture-snapshot CronJob.
 
-The chart is currently a single deployment profile. A future architecture should split production-safe defaults from an explicit local-development values file.
+The default chart uses internal `ClusterIP` services. Optional NodePort exposure is isolated in `values-local-dev.yaml` and is intended only for disposable local labs.
 
 ### Event sink
 
-The event sink is a Python script mounted from a ConfigMap into `python:3.12-slim`. It provides:
+The event sink is a project-owned Python application under `event-sink/` with a digest-pinned Python base image. It provides:
 
-- `POST /events` (and currently any non-snapshot POST path) for Falco payloads;
-- `GET /events` for filtered raw events;
+- `POST /events` for validated Falco payloads;
+- `GET /events` for filtered normalized events (or redacted raw events when explicitly enabled);
 - `GET /events/trends` for aggregate runtime trends;
 - `POST /posture/snapshot` for daily metric batches;
 - `GET /posture/trends` for historical posture metrics;
-- `GET /healthz` for liveness.
+- `GET /healthz` for liveness and readiness.
 
-SQLite data is stored on a 1 GiB ReadWriteOnce PVC. Runtime events and posture snapshots are purged after 30 days. The implementation is single-process and uses an in-process lock around database work.
+All other routes and methods are rejected. Ingest and query routes use separate bearer tokens by default. Body size, snapshot batch size, filter length, time windows, result counts, response bytes, concurrent requests, and socket time are bounded. Event and posture schemas are validated before SQLite writes.
+
+SQLite data is stored on a 1 GiB ReadWriteOnce PVC. Retention is chart-configurable from 1–365 days. Raw Falco bodies are discarded by default; operators may opt in and configure field redaction. The application remains a single process with an in-process database lock, so the RWO volume and SQLite design still constrain availability and scale.
 
 ### Posture snapshot CronJob
 
@@ -61,7 +63,7 @@ The CronJob reads selected CRDs with a cluster-scoped, read-only service account
 `mcp-server/` is a Python stdio MCP server. Tool handlers use either:
 
 - the Kubernetes Python client, loading in-cluster configuration first and local kubeconfig second; or
-- HTTP requests to the event sink configured by `FALCO_SINK_URL`.
+- authenticated HTTP requests to the event sink configured by `FALCO_SINK_URL` and `FALCO_SINK_TOKEN`.
 
 Tools return JSON encoded as MCP text content. They are logically read-only, but their effective Kubernetes privilege is whatever the selected identity permits.
 
@@ -83,10 +85,10 @@ The current correlation axis is a loose combination of namespace, pod/workload c
 
 | Boundary | Data crossing it | Current control | Required direction |
 |---|---|---|---|
-| Falco/falcosidekick → event sink | raw runtime telemetry | cluster HTTP | internal-only service, NetworkPolicy, authenticated ingestion where needed |
-| Snapshot CronJob → event sink | aggregate security posture | cluster HTTP | narrow route/schema and service-to-service authorization |
+| Falco/falcosidekick → event sink | runtime telemetry | ClusterIP, producer NetworkPolicy, ingest bearer token, schema/size limits | validate live connectivity under a policy-enforcing CNI; use TLS or mTLS if traffic crosses an untrusted network |
+| Snapshot CronJob → event sink | aggregate security posture | ClusterIP, producer NetworkPolicy, ingest bearer token, route/schema/batch limits | validate live connectivity under a policy-enforcing CNI |
 | MCP server → Kubernetes API | cluster inventory and security findings | caller kubeconfig or pod identity | documented least-privilege read-only role |
-| MCP server → event sink | raw/aggregate runtime evidence | HTTP NodePort in local setup | authenticated tunnel, port-forward, proxy, or in-cluster deployment |
+| MCP server → event sink | normalized/aggregate runtime evidence | query bearer token plus port-forward or explicitly labeled in-cluster pod | add TLS or a reviewed proxy for remote access; do not expose the plain HTTP service directly |
 | MCP server → agent/model | potentially sensitive cluster evidence | stdio session | minimization, redaction, limits, and operator awareness |
 | Repository → published articles | commands, screenshots, findings | manual scrubbing | claim matrix and explicit sanitization gate |
 
@@ -120,12 +122,11 @@ This makes parser and transport changes testable without changing every skill.
 
 ## Known architecture constraints
 
-- hard-coded `security` service DNS appears in chart values;
-- NodePort is used as the local MCP-to-sink bridge;
-- raw event storage and query share one unauthenticated service;
-- the event sink is embedded in a ConfigMap rather than packaged and tested as an application image;
+- the packaged event-sink image has not yet been published, so the chart retains a tag fallback until a release digest exists;
+- bearer tokens protect route classes but plain in-cluster HTTP does not provide transport confidentiality;
+- NetworkPolicy behavior depends on a policy-enforcing CNI and still needs live connectivity verification;
 - one replica and one RWO SQLite volume limit availability and scale;
 - raw CRD dictionaries flow directly into tool-specific parsers with no versioned domain model;
-- JSON-in-text responses have no explicit pagination or maximum response-size contract.
+- MCP results remain JSON-in-text without pagination, although the event-sink HTTP API now enforces result and response-size limits;
 - untrusted Kubernetes fields and Falco output cross into model context without a documented injection-resistance contract;
 - client-specific skills are currently presented adjacent to the MCP layer, obscuring the host/client/model boundary.

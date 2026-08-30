@@ -8,7 +8,7 @@ falco:
     json_include_output_fields_property: true
     http_output:
       enabled: true
-      url: "http://k8s-sec-stack-falcosidekick.security.svc.cluster.local:2801"
+      url: "http://falcosidekick:2801"
     grpc:
       enabled: false
     grpc_output:
@@ -23,12 +23,15 @@ falco:
 
 falcosidekick:
   enabled: true
+  # Stable same-namespace discovery avoids coupling Falco to the Helm release name.
+  fullnameOverride: falcosidekick
   service:
-    type: NodePort
-    nodePort: 32801
+    type: ClusterIP
   config:
+    # The generated event-sink Secret supplies WEBHOOK_CUSTOMHEADERS.
+    existingSecret: mcp-event-sink-auth
     webhook:
-      address: "http://mcp-event-sink.security.svc.cluster.local:8080/events"
+      address: "http://mcp-event-sink:8080/events"
   replicaCount: 1
   resources:
     requests:
@@ -91,7 +94,41 @@ kubescapeOperator:
         memory: 512Mi
 
 eventSink:
-  nodePort: 32080
+  image:
+    repository: ghcr.io/sf-matt/k8s-sec-event-sink
+    tag: "0.1.0"
+    # Release automation must set a published sha256 digest. A tag is retained
+    # for local image builds until the first event-sink image is published.
+    digest: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    nodePort: null
+  auth:
+    # Set false only when an operator-managed Secret named mcp-event-sink-auth
+    # already supplies EVENT_SINK_INGEST_TOKEN, EVENT_SINK_QUERY_TOKEN, and
+    # WEBHOOK_CUSTOMHEADERS. Authentication itself cannot be disabled by Helm.
+    create: true
+  networkPolicy:
+    enabled: true
+    # Label an in-cluster MCP/query pod explicitly, or use kubectl port-forward.
+    queryClientSelector:
+      k8s-sec-stack.io/event-sink-query: "true"
+  retentionDays: 30
+  storeRawEvents: false
+  redactedFields:
+    - output
+    - output_fields.proc.cmdline
+    - output_fields.proc.args
+  limits:
+    maxBodyBytes: 262144
+    maxSnapshotBatch: 1000
+    maxQueryLimit: 200
+    maxQueryHours: 720
+    maxQueryDays: 90
+    maxTrendRecords: 1000
+    maxResponseBytes: 1048576
+    maxConcurrentRequests: 32
 
 kyverno:
   enabled: true

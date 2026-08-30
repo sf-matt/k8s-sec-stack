@@ -3,27 +3,79 @@ kind: Deployment
 metadata:
   name: mcp-event-sink
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: mcp-event-sink
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mcp-event-sink
+      app.kubernetes.io/name: mcp-event-sink
+      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: mcp-event-sink
-      annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/event-sink-configmap.yaml") . | sha256sum }}
+        app.kubernetes.io/name: mcp-event-sink
+        app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: sink
-          image: python:3.12-slim
-          command: ["python", "/app/server.py"]
+          image: "{{ .Values.eventSink.image.repository }}{{- if .Values.eventSink.image.digest }}@{{ .Values.eventSink.image.digest }}{{- else }}:{{ .Values.eventSink.image.tag }}{{- end }}"
+          imagePullPolicy: {{ .Values.eventSink.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: EVENT_SINK_DB_PATH
+              value: /data/events.db
+            - name: EVENT_SINK_RETENTION_DAYS
+              value: {{ .Values.eventSink.retentionDays | quote }}
+            - name: EVENT_SINK_STORE_RAW_EVENTS
+              value: {{ .Values.eventSink.storeRawEvents | quote }}
+            - name: EVENT_SINK_REDACTED_FIELDS
+              value: {{ join "," .Values.eventSink.redactedFields | quote }}
+            - name: EVENT_SINK_MAX_BODY_BYTES
+              value: {{ .Values.eventSink.limits.maxBodyBytes | quote }}
+            - name: EVENT_SINK_MAX_SNAPSHOT_BATCH
+              value: {{ .Values.eventSink.limits.maxSnapshotBatch | quote }}
+            - name: EVENT_SINK_MAX_QUERY_LIMIT
+              value: {{ .Values.eventSink.limits.maxQueryLimit | quote }}
+            - name: EVENT_SINK_MAX_QUERY_HOURS
+              value: {{ .Values.eventSink.limits.maxQueryHours | quote }}
+            - name: EVENT_SINK_MAX_QUERY_DAYS
+              value: {{ .Values.eventSink.limits.maxQueryDays | quote }}
+            - name: EVENT_SINK_MAX_TREND_RECORDS
+              value: {{ .Values.eventSink.limits.maxTrendRecords | quote }}
+            - name: EVENT_SINK_MAX_RESPONSE_BYTES
+              value: {{ .Values.eventSink.limits.maxResponseBytes | quote }}
+            - name: EVENT_SINK_MAX_CONCURRENT_REQUESTS
+              value: {{ .Values.eventSink.limits.maxConcurrentRequests | quote }}
+            - name: EVENT_SINK_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-event-sink-auth
+                  key: EVENT_SINK_INGEST_TOKEN
+            - name: EVENT_SINK_QUERY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-event-sink-auth
+                  key: EVENT_SINK_QUERY_TOKEN
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
+              protocol: TCP
           volumeMounts:
-            - name: script
-              mountPath: /app
             - name: data
               mountPath: /data
           livenessProbe:
@@ -32,6 +84,12 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 10
           resources:
             requests:
               cpu: 10m
@@ -40,9 +98,6 @@ spec:
               cpu: 100m
               memory: 128Mi
       volumes:
-        - name: script
-          configMap:
-            name: mcp-event-sink
         - name: data
           persistentVolumeClaim:
             claimName: mcp-event-sink-data

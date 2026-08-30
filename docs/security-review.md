@@ -2,13 +2,13 @@
 
 Review date: 2026-08-30
 
-Scope: static review of committed Helm, Python, shell, demo, skill, and test files at `main` commit `cb89914`
+Scope: static review of committed baseline plus Phase 1 boundary-hardening changes on `codex/phase1-event-sink-hardening`
 
-Status: initial review, not a penetration test or production-readiness certification
+Status: Phase 1 implementation update pending maintainer review; not a penetration test or production-readiness certification
 
 ## Executive summary
 
-The project has a sound read-only analysis concept and uses least-privilege RBAC for the posture snapshot job, but the deployment currently assumes a trusted local environment. The most important technical issue is the unauthenticated NodePort event sink: it accepts telemetry and returns raw Falco records without an authorization boundary. Apache-2.0 licensing and prominent lab/reference labeling were added during this review. Production use should wait until exposure, input validation, pod hardening, MCP identity, correlation, and automated test gaps are addressed.
+The Phase 1 branch materially reduces the event-sink boundary: default services are internal, ingest and query credentials are separate, routes and resource use are bounded, raw Falco bodies are discarded by default, and the pod/network manifests are restricted. Two release gates remain before the highest-risk findings can close: publish the project-owned sink image and select it by registry digest, and run live allow/deny connectivity tests under a policy-enforcing CNI. TLS is also required if the plain HTTP service ever crosses an untrusted network. Production use should continue to wait for those gates plus MCP identity, correlation, CI, and end-to-end test work.
 
 No known vulnerability claims about the pinned third-party versions are made here; dependency advisories and image contents require a separate, time-bound scan.
 
@@ -24,7 +24,9 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-001 — Unauthenticated event ingestion and retrieval over NodePort
 
 - Severity: High
-- Evidence: `event-sink-service.yaml` sets `type: NodePort`; the HTTP handler authenticates neither POST nor GET routes; `.mcp.json.example` connects through a node IP.
+- Status: substantially remediated locally; open pending live NetworkPolicy verification.
+- Baseline evidence: `event-sink-service.yaml` set `type: NodePort`; the HTTP handler authenticated neither POST nor GET routes; `.mcp.json.example` connected through a node IP.
+- Phase 1 implementation: default `ClusterIP`; distinct generated or operator-supplied ingest/query tokens; falcosidekick and snapshot producer credentials; query-token support in MCP; default-deny sink policy plus named producer/query selectors; port-forward guidance replaces required NodePort access.
 - Impact: a party with node-port reachability can read raw runtime events, poison incident history/posture data, and consume disk or service capacity. Falco output can contain sensitive process and workload context.
 - Remediation:
   1. make the service `ClusterIP` by default;
@@ -32,31 +34,37 @@ No known vulnerability claims about the pinned third-party versions are made her
   3. require authenticated ingestion/query whenever traffic crosses the pod/namespace trust boundary;
   4. apply default-deny and narrowly scoped NetworkPolicies;
   5. separate ingestion and query authorization if the API remains networked.
-- Verification: unauthenticated requests fail; only falcosidekick, the snapshot job, and the chosen MCP access path can reach their required routes.
+- Verification: `event-sink/tests/test_server.py` proves token separation and 401 behavior; `tests/helm/test_phase1.py` and full Helm renders prove internal defaults and policy selectors. Still required: live positive/negative connectivity tests under a policy-enforcing CNI. Do not close from render tests alone.
 
 ### SEC-002 — Event sink container is not hardened and uses a mutable runtime image
 
 - Severity: High
-- Evidence: the event-sink Deployment has no pod/container `securityContext`; it uses `python:3.12-slim` without a digest and executes code mounted from a ConfigMap.
+- Status: partially remediated locally; open until the project image is published and selected by registry digest.
+- Baseline evidence: the event-sink Deployment had no pod/container `securityContext`; it used `python:3.12-slim` without a digest and executed code mounted from a ConfigMap.
+- Phase 1 implementation: `event-sink/` is a packaged application with a digest-pinned multi-platform Python base; the pod runs as UID/GID 65532 with RuntimeDefault seccomp, no service-account token, no capabilities or privilege escalation, a read-only root filesystem, and PVC-only writes.
 - Impact: the sink may run as root, has a writable filesystem beyond the data need, and can change when the image tag moves. Compromise affects retained telemetry and the namespace network.
 - Remediation: build a minimal project-owned image, pin it by digest for releases, run as non-root, drop all capabilities, disable privilege escalation, use a read-only root filesystem, set seccomp, disable service-account token mounting, and grant write access only to the data volume.
-- Verification: Pod Security Restricted checks pass and image provenance is reproducible.
+- Verification: Helm render tests assert the Restricted controls and the Dockerfile pins `python:3.12.11-slim-bookworm@sha256:519591...`. The chart currently retains a tag fallback because no project image has been published. Required for closure: build/scan/publish the project image, record its SBOM/provenance, set `eventSink.image.digest`, and verify admission under Pod Security Restricted.
 
 ### SEC-003 — Unbounded request/query inputs permit denial of service
 
 - Severity: Medium
-- Evidence: `Content-Length` is trusted without a maximum; `limit`, `hours`, and `days` are parsed directly with no range checks; all non-`/posture/snapshot` POST paths are treated as event ingestion; the server uses single-threaded `HTTPServer`.
+- Status: resolved locally on 2026-08-30; pending maintainer review and CI integration.
+- Baseline evidence: `Content-Length` was trusted without a maximum; numeric query fields had no ranges; unknown POST paths ingested events; the server used single-threaded `HTTPServer`.
+- Resolution: exact method/route allowlists, content type and ISO timestamp validation, event/posture schemas, body/batch/filter/range/result/response/concurrency limits, structured errors, socket timeouts, a bounded request queue, and threaded request handling.
 - Impact: oversized bodies, extreme query ranges/limits, slow clients, or malformed numeric values can exhaust memory, block request handling, or produce handler failures.
 - Remediation: allowlist methods/routes, cap body and result sizes, validate schemas and numeric ranges, set socket/request timeouts, return structured errors, and add load/abuse tests. Consider a maintained web framework/server once the sink is packaged.
-- Verification: boundary tests demonstrate 4xx responses and bounded resource use.
+- Verification: `python3 -m unittest discover -s event-sink/tests -v` passes abuse cases for unknown routes/methods, content type, malformed schema, oversized bodies, query bounds, batch bounds, auth, and response size. Closure evidence should be retained in CI after review.
 
 ### SEC-004 — Raw security telemetry retention lacks minimization controls
 
 - Severity: Medium
-- Evidence: complete Falco events are serialized into the `raw` SQLite column; retention is hard-coded to 30 days; the API returns those records.
+- Status: resolved locally on 2026-08-30; pending maintainer review and CI integration.
+- Baseline evidence: complete Falco events were serialized into SQLite; retention was hard-coded to 30 days; the API returned raw records.
+- Resolution: normalized fields are stored and returned by default, raw bodies are opt-in, configured paths are redacted when raw storage is enabled, and retention is chart-configurable from 1–365 days.
 - Impact: command arguments, paths, workload identifiers, or other operational data may be retained and sent to an LLM when a smaller normalized record would suffice.
 - Remediation: define a data classification, allow configurable retention, store normalized fields by default, explicitly opt into raw payload retention, redact configured fields, and document PVC backup/encryption expectations.
-- Verification: fixtures containing representative secrets are redacted or excluded and retention settings are chart-configurable.
+- Verification: event-sink tests prove representative command/output data is absent by default, redacted after explicit opt-in, and expired event/posture rows are purged. Helm tests render the configuration controls.
 
 ### SEC-005 — MCP server inherits broad caller Kubernetes privileges
 
@@ -69,10 +77,12 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-006 — Namespace coupling can redirect or break telemetry
 
 - Severity: Medium
-- Evidence: Falco and falcosidekick URLs in `values.yaml` include the literal namespace `security`, while Helm supports an arbitrary release namespace.
+- Status: resolved locally on 2026-08-30; pending maintainer review.
+- Baseline evidence: Falco and falcosidekick URLs in `values.yaml` included the literal namespace `security`, while Helm supports an arbitrary release namespace.
+- Resolution: same-namespace service discovery uses release-scoped short DNS names; the snapshot route follows the same pattern.
 - Impact: installing into another namespace breaks the intended pipeline and can send traffic to an unexpected same-named service if one exists in `security`.
 - Remediation: template project-owned service addresses and expose supported overrides; add Helm render tests for multiple namespaces.
-- Verification: an install under a non-default namespace produces no references to `.security.svc` unless explicitly configured.
+- Verification: the Helm suite renders project templates in `security` and `alternate-security`; full umbrella renders in both namespaces contain no hard-coded cross-namespace sink/sidekick address.
 
 ### SEC-007 — Dependency and build reproduction are incomplete
 
@@ -85,7 +95,7 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-008 — Automated security regression coverage is insufficient
 
 - Severity: Medium
-- Evidence: no CI workflow or Python test suite is committed. The Kyverno test manifest references policy YAML under `policies/`, while that directory's generated content is gitignored.
+- Evidence: Phase 1 adds event-sink and Helm regression suites, but no CI workflow or broad parser/MCP suite is committed. The Kyverno test manifest still references policy YAML under `policies/`, while that directory's generated content is gitignored.
 - Impact: parser drift, route-validation regressions, unsafe chart defaults, and broken policy tests can merge undetected.
 - Remediation: add fixture-based parser tests, MCP schema/dispatch tests, event-sink validation tests, Helm lint/render tests, executable Kyverno fixtures, and a minimal kind end-to-end job.
 - Verification: all suites run from a clean clone in CI.
@@ -93,10 +103,12 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-009 — falcosidekick NodePort expands the network surface
 
 - Severity: Medium
-- Evidence: `falcosidekick.service.type` is `NodePort` with a fixed port in the default values.
+- Status: resolved locally on 2026-08-30; pending maintainer review.
+- Baseline evidence: `falcosidekick.service.type` was `NodePort` with a fixed port in the default values.
+- Resolution: the service defaults to `ClusterIP`; the fixed NodePort exists only in the explicitly local `values-local-dev.yaml` profile.
 - Impact: a service intended for internal routing is exposed on every node, increasing discovery and attack surface and creating port conflicts.
 - Remediation: default to `ClusterIP`; move NodePort settings into local-development values only; confirm whether any external consumer is genuinely required.
-- Verification: default Helm render contains no NodePort services.
+- Verification: isolated Helm tests and the full pinned-dependency render contain no default NodePort; the explicit local profile renders ports 32801 and 32080.
 
 ### SEC-010 — Broad exception handling obscures partial posture failures
 
@@ -138,6 +150,23 @@ No known vulnerability claims about the pinned third-party versions are made her
 - Kyverno production values use three admission replicas and a fail-closed policy by default.
 - Secrets and machine-specific MCP settings are excluded from Git.
 - Skills explicitly prohibit invented findings and default generated Kyverno policies to Audit unless the user requests Enforce.
+- Phase 1 defaults discard raw Falco bodies, authenticate route classes separately, and bound HTTP resource use.
+- The event-sink pod renders with the Restricted security controls and a default-deny network boundary.
+
+## Phase 1 verification record
+
+Run locally on 2026-08-30 from `codex/phase1-event-sink-hardening`:
+
+```text
+python3 -m unittest discover -s event-sink/tests -v  # 11 tests passed
+python3 -m unittest discover -s tests/helm -v        # 6 tests passed
+helm lint charts/k8s-sec-stack                       # 1 chart linted, 0 failed
+helm template ... --namespace security               # no default NodePort
+helm template ... --namespace alternate-security     # no hard-coded .security.svc and no NodePort
+```
+
+These are local implementation checks, not independent validation. Open gates are recorded under SEC-001 and SEC-002.
+`docker build --tag k8s-sec-event-sink:phase1-test event-sink` was also attempted and could not run because the local Docker daemon was unavailable; it is not counted as passing evidence.
 
 ## Remediation order
 
