@@ -3,6 +3,10 @@ name = "k8s-sec-mcp"
 version = "0.1.0"
 description = "MCP server exposing k8s security CRDs (trivy-operator, kubescape, kyverno, falco) to LLM agents"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+    { name = "Matt Brown" },
+]
 dependencies = [
     "mcp[cli]>=1.0.0",
     "kubernetes>=29.0.0",

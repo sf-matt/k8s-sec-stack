@@ -1,6 +1,10 @@
 # k8s-sec-stack
 
-An opinionated, fully open-source Kubernetes security reference stack covering posture, vulnerability management, and runtime threat detection — wired together with an MCP server and Claude-powered skills.
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+An opinionated, open-source Kubernetes security reference stack covering posture, vulnerability management, and runtime threat detection—wired together with a provider-neutral MCP server and optional agent workflows.
+
+> **Project status: reference implementation and lab.** This is not a production-ready security product, SIEM replacement, or independently audited control plane. Review [the security policy](SECURITY.md) and [known findings](docs/security-review.md) before deploying it outside an isolated test environment.
 
 ## Stack
 
@@ -10,14 +14,14 @@ An opinionated, fully open-source Kubernetes security reference stack covering p
 | Vulnerability management | [trivy-operator](https://github.com/aquasecurity/trivy-operator) | `VulnerabilityReport` / `ConfigAuditReport` CRDs |
 | Posture / compliance | [kubescape-operator](https://github.com/kubescape/kubescape-operator) | `ClusterComplianceReport` CRD |
 | Policy enforcement | [Kyverno](https://kyverno.io) | `PolicyReport` CRD |
-| Agent interface | `mcp-server/` | MCP tools over the above CRDs |
+| Agent interface | `mcp-server/` | Read-only MCP tools over the above evidence sources |
 
 ## Layout
 
 ```
 charts/          Helm umbrella chart — one install to deploy the full stack
-mcp-server/      MCP server exposing CRD data as Claude-readable tools
-skills/          Claude skill prompts — six skills covering triage, posture, image remediation, and policy
+mcp-server/      Provider-neutral MCP server exposing normalized security evidence
+skills/          Current client-oriented workflow prompts for triage, posture, remediation, and policy
 hack/            Bootstrap scripts (helm install, local MCP config generation)
 demo/            Deliberately vulnerable workloads for testing
 blog/            Draft posts for the companion blog series
@@ -29,7 +33,7 @@ policies/        Generated policy + exception YAML — gitignored, lives locally
 - A running Kubernetes cluster with `kubectl` pointing at it
 - `helm` >= 3.12
 - Python >= 3.11 + [`uv`](https://github.com/astral-sh/uv)
-- [Claude Code](https://claude.ai/code)
+- Claude Code for the current automated client setup; other MCP-compatible hosts can launch the stdio server manually
 
 ## Quickstart
 
@@ -40,7 +44,7 @@ policies/        Generated policy + exception YAML — gitignored, lives locally
 # 2. Deploy vulnerable demo workloads (optional — exercises the full triage workflow)
 kubectl apply -f demo/
 
-# 3. Generate local MCP + Claude Code config (run once per machine)
+# 3. Generate the current Claude Code MCP config (run once per machine)
 ./hack/configure-local.sh
 
 # 4. Restart Claude Code from the project directory
@@ -62,3 +66,13 @@ The MCP server starts automatically when Claude Code loads. Skills are available
 ## Blog series
 
 Companion posts publish to [cloudsecburrito.com](https://cloudsecburrito.com).
+
+## Development disclosure
+
+This project has been substantially developed with AI coding agents, including Claude Code and OpenAI Codex. AI assistance has included code generation, refactoring, documentation, review, and test scaffolding.
+
+Project maintainer Matt Brown directs the architecture, manually tests and validates the documented lab workflows, reviews changes, and remains responsible for what is merged and released. AI assistance is not an independent security audit. See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution and validation policy.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE). Copyright 2026 k8s-sec-stack contributors. Third-party dependencies remain subject to their own licenses.

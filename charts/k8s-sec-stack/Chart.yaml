@@ -3,6 +3,14 @@ name: k8s-sec-stack
 description: OSS Kubernetes security stack — posture, VM, and runtime threats
 type: application
 version: 0.1.0
+home: https://github.com/sf-matt/k8s-sec-stack
+sources:
+  - https://github.com/sf-matt/k8s-sec-stack
+maintainers:
+  - name: Matt Brown
+    url: https://github.com/sf-matt
+annotations:
+  artifacthub.io/license: Apache-2.0
 
 dependencies:
   - name: falco
