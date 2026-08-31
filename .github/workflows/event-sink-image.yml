@@ -135,4 +135,6 @@ jobs:
           push-to-registry: true
 
       - name: Record published digest
-        run: echo "Published ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "::notice title=Published image digest::${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
+          echo "Published ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
