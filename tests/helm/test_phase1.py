@@ -56,6 +56,11 @@ class PhaseOneHelmTest(unittest.TestCase):
         self.assertRegex(dockerfile, r"FROM python:[^@\n]+@sha256:[0-9a-f]{64}", "Docker base must be digest pinned")
         self.assertIn("USER 65532:65532", dockerfile)
 
+    def test_event_sink_integer_limits_render_without_scientific_notation(self):
+        rendered = self.render()
+        self.assertIn('value: "1048576"', rendered)
+        self.assertNotIn('value: "1.048576e+06"', rendered)
+
     def test_published_image_digest_overrides_mutable_tag(self):
         published_digest = "sha256:ecd8cf86a6284ccaed6a9ee63c363f0d04fa01b65e43c327af01b9a576131479"
         default_render = self.render()

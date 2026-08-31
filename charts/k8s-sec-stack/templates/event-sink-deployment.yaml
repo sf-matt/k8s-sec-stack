@@ -40,27 +40,27 @@ spec:
             - name: EVENT_SINK_DB_PATH
               value: /data/events.db
             - name: EVENT_SINK_RETENTION_DAYS
-              value: {{ .Values.eventSink.retentionDays | quote }}
+              value: {{ .Values.eventSink.retentionDays | int | quote }}
             - name: EVENT_SINK_STORE_RAW_EVENTS
               value: {{ .Values.eventSink.storeRawEvents | quote }}
             - name: EVENT_SINK_REDACTED_FIELDS
               value: {{ join "," .Values.eventSink.redactedFields | quote }}
             - name: EVENT_SINK_MAX_BODY_BYTES
-              value: {{ .Values.eventSink.limits.maxBodyBytes | quote }}
+              value: {{ .Values.eventSink.limits.maxBodyBytes | int | quote }}
             - name: EVENT_SINK_MAX_SNAPSHOT_BATCH
-              value: {{ .Values.eventSink.limits.maxSnapshotBatch | quote }}
+              value: {{ .Values.eventSink.limits.maxSnapshotBatch | int | quote }}
             - name: EVENT_SINK_MAX_QUERY_LIMIT
-              value: {{ .Values.eventSink.limits.maxQueryLimit | quote }}
+              value: {{ .Values.eventSink.limits.maxQueryLimit | int | quote }}
             - name: EVENT_SINK_MAX_QUERY_HOURS
-              value: {{ .Values.eventSink.limits.maxQueryHours | quote }}
+              value: {{ .Values.eventSink.limits.maxQueryHours | int | quote }}
             - name: EVENT_SINK_MAX_QUERY_DAYS
-              value: {{ .Values.eventSink.limits.maxQueryDays | quote }}
+              value: {{ .Values.eventSink.limits.maxQueryDays | int | quote }}
             - name: EVENT_SINK_MAX_TREND_RECORDS
-              value: {{ .Values.eventSink.limits.maxTrendRecords | quote }}
+              value: {{ .Values.eventSink.limits.maxTrendRecords | int | quote }}
             - name: EVENT_SINK_MAX_RESPONSE_BYTES
-              value: {{ .Values.eventSink.limits.maxResponseBytes | quote }}
+              value: {{ .Values.eventSink.limits.maxResponseBytes | int | quote }}
             - name: EVENT_SINK_MAX_CONCURRENT_REQUESTS
-              value: {{ .Values.eventSink.limits.maxConcurrentRequests | quote }}
+              value: {{ .Values.eventSink.limits.maxConcurrentRequests | int | quote }}
             - name: EVENT_SINK_INGEST_TOKEN
               valueFrom:
                 secretKeyRef:
