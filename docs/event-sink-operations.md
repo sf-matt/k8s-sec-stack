@@ -8,7 +8,12 @@ bearer tokens, scan reports, and generated local MCP configuration as sensitive.
 The `Event sink image` GitHub Actions workflow builds and scans the image before
 publishing multi-platform `linux/amd64` and `linux/arm64` manifests to
 `ghcr.io/sf-matt/k8s-sec-event-sink`. Actions are pinned to immutable commits.
-The published image includes an SBOM and build-provenance attestations.
+The published image includes an SBOM and build-provenance attestations. Workflow
+run `33358389880` passed the blocking scan and published the public manifest:
+
+```text
+ghcr.io/sf-matt/k8s-sec-event-sink@sha256:ecd8cf86a6284ccaed6a9ee63c363f0d04fa01b65e43c327af01b9a576131479
+```
 
 GitHub Container Registry packages are private on first publication even when
 their source repository is public. After the first successful workflow run, a
@@ -16,10 +21,9 @@ package administrator must open the package settings, set visibility to Public,
 and confirm that the package is linked to `sf-matt/k8s-sec-stack`. The OCI source
 label and repository workflow establish that link.
 
-Copy the multi-platform manifest digest from the workflow summary into
-`eventSink.image.digest` in `charts/k8s-sec-stack/values.yaml`. Releases must use
-the `repository@sha256:...` reference; the tag exists for discovery and local
-development only.
+The chart records that multi-platform manifest in `eventSink.image.digest`.
+Future releases must copy the digest from the workflow annotation into the
+chart; the tag exists for discovery and local development only.
 
 ## Credential rotation
 

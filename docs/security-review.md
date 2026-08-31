@@ -8,7 +8,7 @@ Status: Phase 1 implementation update pending maintainer review; not a penetrati
 
 ## Executive summary
 
-The Phase 1 branch materially reduces the event-sink boundary: default services are internal, ingest and query credentials are separate, routes and resource use are bounded, raw Falco bodies are discarded by default, and the pod/network manifests are restricted. Two release gates remain before the highest-risk findings can close: publish the project-owned sink image and select it by registry digest, and run live allow/deny connectivity tests under a policy-enforcing CNI. TLS is also required if the plain HTTP service ever crosses an untrusted network. Production use should continue to wait for those gates plus MCP identity, correlation, CI, and end-to-end test work.
+The Phase 1 branch materially reduces the event-sink boundary: default services are internal, ingest and query credentials are separate, routes and resource use are bounded, raw Falco bodies are discarded by default, and the pod/network manifests are restricted. The scanned project image is now public and selected by immutable registry digest. Live allow/deny connectivity tests under a policy-enforcing CNI and live Pod Security Restricted admission remain before the highest-risk findings can close. TLS is also required if the plain HTTP service ever crosses an untrusted network. Production use should continue to wait for those gates plus MCP identity, correlation, CI, and end-to-end test work.
 
 No known vulnerability claims about the pinned third-party versions are made here; dependency advisories and image contents require a separate, time-bound scan.
 
@@ -39,12 +39,12 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-002 — Event sink container is not hardened and uses a mutable runtime image
 
 - Severity: High
-- Status: partially remediated locally; open until the project image is published and selected by registry digest.
+- Status: substantially remediated; public image delivery and digest selection are complete, pending live Pod Security Restricted admission.
 - Baseline evidence: the event-sink Deployment had no pod/container `securityContext`; it used `python:3.12-slim` without a digest and executed code mounted from a ConfigMap.
 - Phase 1 implementation: `event-sink/` is a packaged application with a digest-pinned multi-platform Python base; the pod runs as UID/GID 65532 with RuntimeDefault seccomp, no service-account token, no capabilities or privilege escalation, a read-only root filesystem, and PVC-only writes.
 - Impact: the sink may run as root, has a writable filesystem beyond the data need, and can change when the image tag moves. Compromise affects retained telemetry and the namespace network.
 - Remediation: build a minimal project-owned image, pin it by digest for releases, run as non-root, drop all capabilities, disable privilege escalation, use a read-only root filesystem, set seccomp, disable service-account token mounting, and grant write access only to the data volume.
-- Verification: Helm render tests assert the Restricted controls and the Dockerfile pins `python:3.12.11-slim-bookworm@sha256:519591...`. A pinned GitHub Actions workflow builds, scans, publishes, and attests the image, but has not run yet. Required for closure: complete that run, make the GHCR package public, set `eventSink.image.digest`, and verify admission under Pod Security Restricted.
+- Verification: Helm render tests assert the Restricted controls and the Dockerfile pins `python:3.12.14-slim-bookworm@sha256:0f5b26...`. GitHub Actions run `33358389880` passed the blocking HIGH/CRITICAL scan, published SBOM/provenance attestations and the multi-platform manifest `sha256:ecd8cf...`; an anonymous GHCR token exchange returned HTTP 200 and the same digest. The chart selects that digest by default. Required for closure: verify live admission under Pod Security Restricted.
 
 ### SEC-003 — Unbounded request/query inputs permit denial of service
 
@@ -166,7 +166,7 @@ helm template ... --namespace alternate-security     # no hard-coded .security.s
 ```
 
 These are local implementation checks, not independent validation. Open gates are recorded under SEC-001 and SEC-002.
-`docker build --tag k8s-sec-event-sink:phase1-test event-sink` was also attempted and could not run because the local Docker daemon was unavailable; it is not counted as passing evidence.
+`docker build --tag k8s-sec-event-sink:phase1-test event-sink` was also attempted and could not run because the local Docker daemon was unavailable; it is not counted as passing evidence. GitHub Actions run `33358389880` subsequently provided the independent multi-platform build and blocking scan evidence, and anonymous registry resolution verified the public manifest digest.
 
 ## Remediation order
 

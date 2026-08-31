@@ -8,9 +8,6 @@ on:
   push:
     branches:
       - main
-      # Bootstrap the first package from the pre-merge hardening branch. Remove
-      # this entry after the public package digest is committed to the chart.
-      - codex/phase1-event-sink-hardening
     tags:
       - "v*"
     paths:

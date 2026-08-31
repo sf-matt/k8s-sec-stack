@@ -57,6 +57,13 @@ class PhaseOneHelmTest(unittest.TestCase):
         self.assertIn("USER 65532:65532", dockerfile)
 
     def test_published_image_digest_overrides_mutable_tag(self):
+        published_digest = "sha256:ecd8cf86a6284ccaed6a9ee63c363f0d04fa01b65e43c327af01b9a576131479"
+        default_render = self.render()
+        self.assertIn(
+            f'image: "ghcr.io/sf-matt/k8s-sec-event-sink@{published_digest}"',
+            default_render,
+        )
+
         digest = "sha256:" + "a" * 64
         rendered = self.render(extra_args=("--set", f"eventSink.image.digest={digest}"))
         self.assertIn(f'image: "ghcr.io/sf-matt/k8s-sec-event-sink@{digest}"', rendered)

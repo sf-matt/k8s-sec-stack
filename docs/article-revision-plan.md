@@ -122,13 +122,13 @@ Provisional scope:
 
 Publication gate: Phase 1 and the core of Phase 3 in `docs/roadmap.md` must be complete, and resolved findings must contain verification evidence.
 
-Implementation note (2026-08-30, pending maintainer review): the Phase 1 branch now supplies the ClusterIP defaults, separate ingest/query tokens, bounded API, normalized-only retention default, restricted pod context, and NetworkPolicy manifests needed for this section. Do not describe the phase as complete in an article until a project image is published and selected by digest and live allow/deny behavior is verified with a policy-enforcing CNI.
+Implementation note (2026-08-30, pending maintainer review): the Phase 1 branch now supplies the ClusterIP defaults, separate ingest/query tokens, bounded API, normalized-only retention default, restricted pod context, and NetworkPolicy manifests needed for this section. The scanned project image is public and selected by digest. Do not describe the phase as complete in an article until live allow/deny behavior is verified with a policy-enforcing CNI and the pod is admitted under Pod Security Restricted.
 
 The same branch now fails startup on missing or reused credentials, clears legacy
 schema-version-0 raw payloads on upgrade, and includes a pinned GHCR workflow for
-blocking image scans, SBOM generation, and provenance. Publication claims remain
-blocked until the workflow succeeds, the package is explicitly public, and the
-chart records the resulting multi-platform manifest digest.
+blocking image scans, SBOM generation, and provenance. Workflow run `33358389880`
+succeeded, the package is explicitly public, and the chart records the resulting
+multi-platform manifest digest.
 
 ## Claim matrix template
 

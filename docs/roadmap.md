@@ -25,14 +25,14 @@ Goal: close the highest-risk trust-boundary gaps before expanding features.
 |---|---|---|---|
 | Default event sink and falcosidekick services to ClusterIP | SEC-001, SEC-009 | complete | Default full render has no NodePort; `values-local-dev.yaml` retains explicit optional access |
 | Remove hard-coded release namespace addresses | SEC-006 | complete | Isolated tests and full renders pass for `security` and `alternate-security` |
-| Harden event-sink pod and pin/package its image | SEC-002 | in progress | Restricted render tests and packaged source pass; GHCR build/scan/SBOM/provenance workflow added; publish publicly and set its manifest digest before closure |
+| Harden event-sink pod and pin/package its image | SEC-002 | in progress | Public GHCR build/scan/SBOM/provenance run passed and the chart pins its manifest; live Pod Security Restricted admission remains |
 | Add NetworkPolicies for the security namespace flows | SEC-001 | in progress | Render tests verify selectors/default deny; live allow/deny tests under a policy-enforcing CNI remain |
 | Bound/validate sink routes, payloads, and queries | SEC-003 | complete | HTTP boundary suite covers auth, allowlists, schemas, size/range limits, and response bounds |
 | Make raw payload retention and retention days configurable | SEC-004 | complete | normalized-only default, opt-in redaction, and purge tests pass |
 
 Recommended implementation order: service defaults and namespace templating, then pod image/security context, then API validation/auth and NetworkPolicy. Keep each change small enough to review independently.
 
-Local implementation evidence (pending maintainer review): `python3 -m unittest discover -s event-sink/tests -v`, `python3 -m unittest discover -s tests/helm -v`, `helm lint charts/k8s-sec-stack`, and full `helm template` renders in two namespaces. Phase 1 is not globally complete until the image digest and live CNI connectivity gates above are satisfied.
+Local implementation evidence (pending maintainer review): `python3 -m unittest discover -s event-sink/tests -v`, `python3 -m unittest discover -s tests/helm -v`, `helm lint charts/k8s-sec-stack`, and full `helm template` renders in two namespaces. Public workflow run `33358389880` independently built, scanned, and published the digest-pinned image. Phase 1 is not globally complete until live CNI connectivity and Pod Security admission gates above are satisfied.
 
 ## Phase 2 — Provider-neutral MCP foundation
 

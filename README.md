@@ -63,8 +63,8 @@ not be committed or shared.
 
 `hack/bootstrap.sh` currently builds the event-sink image locally and loads it
 into the active kind cluster. Other conformant Kubernetes clusters remain an
-architecture target, but their installation path requires the published GHCR
-image and is not yet part of this quickstart. See
+architecture target and the default chart now selects the public GHCR image by
+immutable digest, but their installation path is not yet part of this quickstart. See
 [`docs/event-sink-operations.md`](docs/event-sink-operations.md) for image
 publication, digest pinning, upgrade migration, and credential rotation.
 

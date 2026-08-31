@@ -97,9 +97,9 @@ eventSink:
   image:
     repository: ghcr.io/sf-matt/k8s-sec-event-sink
     tag: "0.1.0"
-    # Release automation must set a published sha256 digest. A tag is retained
-    # for local image builds until the first event-sink image is published.
-    digest: ""
+    # Public multi-platform manifest produced by Event sink image run 33358389880.
+    # The tag remains for discovery; Helm releases use this immutable digest.
+    digest: "sha256:ecd8cf86a6284ccaed6a9ee63c363f0d04fa01b65e43c327af01b9a576131479"
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
