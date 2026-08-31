@@ -124,6 +124,12 @@ Publication gate: Phase 1 and the core of Phase 3 in `docs/roadmap.md` must be c
 
 Implementation note (2026-08-30, pending maintainer review): the Phase 1 branch now supplies the ClusterIP defaults, separate ingest/query tokens, bounded API, normalized-only retention default, restricted pod context, and NetworkPolicy manifests needed for this section. Do not describe the phase as complete in an article until a project image is published and selected by digest and live allow/deny behavior is verified with a policy-enforcing CNI.
 
+The same branch now fails startup on missing or reused credentials, clears legacy
+schema-version-0 raw payloads on upgrade, and includes a pinned GHCR workflow for
+blocking image scans, SBOM generation, and provenance. Publication claims remain
+blocked until the workflow succeeds, the package is explicitly public, and the
+chart records the resulting multi-platform manifest digest.
+
 ## Claim matrix template
 
 Use this table during each revision. Every technical claim needs evidence or must be softened/removed.

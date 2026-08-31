@@ -20,6 +20,7 @@ An opinionated, open-source Kubernetes security reference stack covering posture
 
 ```
 charts/          Helm umbrella chart — one install to deploy the full stack
+event-sink/      Packaged, bounded SQLite runtime-event and posture service
 mcp-server/      Provider-neutral MCP server exposing normalized security evidence
 skills/          Current client-oriented workflow prompts for triage, posture, remediation, and policy
 hack/            Bootstrap scripts (helm install, local MCP config generation)
@@ -28,14 +29,15 @@ blog/            Draft posts for the companion blog series
 policies/        Generated policy + exception YAML — gitignored, lives locally only
 ```
 
-## Prerequisites
+## Local lab prerequisites
 
-- A running Kubernetes cluster with `kubectl` pointing at it
+- A running kind cluster with `kubectl` pointing at it
+- Docker Engine and the `kind` CLI available locally
 - `helm` >= 3.12
 - Python >= 3.11 + [`uv`](https://github.com/astral-sh/uv)
 - Claude Code for the current automated client setup; other MCP-compatible hosts can launch the stdio server manually
 
-## Quickstart
+## kind quickstart
 
 ```bash
 # 1. Deploy the full stack into your cluster
@@ -58,6 +60,13 @@ cluster. `charts/k8s-sec-stack/values-local-dev.yaml` retains explicit NodePort
 settings for isolated disposable labs, but the port-forward path above is preferred.
 The generated local MCP configuration contains a query-only bearer token and must
 not be committed or shared.
+
+`hack/bootstrap.sh` currently builds the event-sink image locally and loads it
+into the active kind cluster. Other conformant Kubernetes clusters remain an
+architecture target, but their installation path requires the published GHCR
+image and is not yet part of this quickstart. See
+[`docs/event-sink-operations.md`](docs/event-sink-operations.md) for image
+publication, digest pinning, upgrade migration, and credential rotation.
 
 The MCP server starts automatically when Claude Code loads. Skills are available immediately.
 

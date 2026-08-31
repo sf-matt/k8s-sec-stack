@@ -73,6 +73,11 @@ Known baseline constraints:
 
 Phase 1 hardening implemented on `codex/phase1-event-sink-hardening` and pending maintainer review changes that baseline as follows: the sink and falcosidekick default to `ClusterIP`; release-namespace coupling is removed from their routes; ingest and query tokens are separated; sink inputs, queries, concurrency, and responses are bounded; normalized-only retention is the default; and the sink pod and network boundary are restricted. A packaged image source and pinned base exist, but publishing and selecting the project image by registry digest plus live CNI connectivity verification remain release gates.
 
+The event-sink authentication boundary fails closed when credentials are missing or
+identical. Schema version 0 upgrades clear legacy raw Falco bodies before queries
+are served. Image publication is designed for public GHCR with a blocking Trivy
+scan, SBOM, provenance, and a digest-pinned Helm reference.
+
 See `docs/security-review.md` for risk detail and `docs/roadmap.md` for sequencing.
 
 ## Workstreams

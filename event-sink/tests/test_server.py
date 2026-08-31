@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
+import sqlite3
 import sys
 import tempfile
 import threading
@@ -83,6 +85,31 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(events[0]["namespace"], "demo")
 
+    def test_startup_rejects_missing_or_identical_tokens(self):
+        original_ingest = os.environ.pop("EVENT_SINK_INGEST_TOKEN", None)
+        original_query = os.environ.pop("EVENT_SINK_QUERY_TOKEN", None)
+        try:
+            with self.assertRaisesRegex(ValueError, "EVENT_SINK_INGEST_TOKEN is required"):
+                Settings.from_env()
+
+            os.environ["EVENT_SINK_INGEST_TOKEN"] = "x" * 24
+            os.environ["EVENT_SINK_QUERY_TOKEN"] = "x" * 24
+            with self.assertRaisesRegex(ValueError, "must be distinct"):
+                Settings.from_env()
+
+            missing = replace(self.settings, ingest_token="")
+            with self.assertRaisesRegex(ValueError, "EVENT_SINK_INGEST_TOKEN is required"):
+                EventSinkServer(("127.0.0.1", 0), Store(missing))
+        finally:
+            if original_ingest is not None:
+                os.environ["EVENT_SINK_INGEST_TOKEN"] = original_ingest
+            else:
+                os.environ.pop("EVENT_SINK_INGEST_TOKEN", None)
+            if original_query is not None:
+                os.environ["EVENT_SINK_QUERY_TOKEN"] = original_query
+            else:
+                os.environ.pop("EVENT_SINK_QUERY_TOKEN", None)
+
     def test_unknown_post_route_is_not_treated_as_ingestion(self):
         status, body = self.request("POST", "/anything", EVENT, token="i" * 24)
         self.assertEqual(status, 404)
@@ -150,6 +177,55 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertNotIn("output", events[0])
         self.assertNotIn("do-not-retain", json.dumps(events))
+
+    def test_upgrade_discards_legacy_raw_payloads(self):
+        legacy = dict(EVENT, output="secret=legacy")
+        legacy_path = Path(self.temp_dir.name) / "legacy.db"
+        with sqlite3.connect(legacy_path) as connection:
+            connection.execute(
+                """CREATE TABLE events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    time TEXT NOT NULL, priority TEXT, rule TEXT, ns TEXT, pod TEXT,
+                    image TEXT, process TEXT, tags TEXT, raw TEXT NOT NULL
+                )"""
+            )
+            connection.execute(
+                "INSERT INTO events (time, priority, rule, tags, raw) VALUES (?, ?, ?, ?, ?)",
+                (EVENT["time"], "WARNING", "legacy", "[]", json.dumps(legacy)),
+            )
+
+        upgraded = Store(replace(self.settings, db_path=legacy_path))
+        upgraded.init()
+        with upgraded.connect() as connection:
+            raw = connection.execute("SELECT raw FROM events").fetchone()[0]
+            version = connection.execute("PRAGMA user_version").fetchone()[0]
+        self.assertEqual(raw, "")
+        self.assertEqual(version, 1)
+        self.assertNotIn(
+            "secret=legacy",
+            json.dumps(upgraded.query_events(priority="ALL", namespace="", pod="", rule="", hours=0, limit=2)),
+        )
+
+    def test_query_policy_suppresses_raw_data_even_if_a_row_is_reintroduced(self):
+        with self.store.connect() as connection:
+            connection.execute(
+                "INSERT INTO events (time, priority, rule, tags, raw) VALUES (?, ?, ?, ?, ?)",
+                (EVENT["time"], "WARNING", "defense-in-depth", "[]", json.dumps(EVENT)),
+            )
+        events = self.store.query_events(priority="ALL", namespace="", pod="", rule="", hours=0, limit=2)
+        self.assertNotIn("output", events[0])
+        self.assertNotIn("do-not-retain", json.dumps(events))
+
+    def test_restart_clears_raw_data_after_retention_is_disabled(self):
+        with self.store.connect() as connection:
+            connection.execute(
+                "INSERT INTO events (time, priority, rule, tags, raw) VALUES (?, ?, ?, ?, ?)",
+                (EVENT["time"], "WARNING", "previous-opt-in", "[]", json.dumps(EVENT)),
+            )
+            connection.execute("PRAGMA user_version = 1")
+        self.store.init()
+        with self.store.connect() as connection:
+            self.assertEqual(connection.execute("SELECT raw FROM events").fetchone()[0], "")
 
     def test_opted_in_raw_payload_is_redacted(self):
         self.server.shutdown()

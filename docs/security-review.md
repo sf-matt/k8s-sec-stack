@@ -26,7 +26,7 @@ No known vulnerability claims about the pinned third-party versions are made her
 - Severity: High
 - Status: substantially remediated locally; open pending live NetworkPolicy verification.
 - Baseline evidence: `event-sink-service.yaml` set `type: NodePort`; the HTTP handler authenticated neither POST nor GET routes; `.mcp.json.example` connected through a node IP.
-- Phase 1 implementation: default `ClusterIP`; distinct generated or operator-supplied ingest/query tokens; falcosidekick and snapshot producer credentials; query-token support in MCP; default-deny sink policy plus named producer/query selectors; port-forward guidance replaces required NodePort access.
+- Phase 1 implementation: default `ClusterIP`; distinct generated or operator-supplied ingest/query tokens; fail-closed startup validation; falcosidekick and snapshot producer credentials; query-token support in MCP; default-deny sink policy plus named producer/query selectors; port-forward guidance replaces required NodePort access.
 - Impact: a party with node-port reachability can read raw runtime events, poison incident history/posture data, and consume disk or service capacity. Falco output can contain sensitive process and workload context.
 - Remediation:
   1. make the service `ClusterIP` by default;
@@ -34,7 +34,7 @@ No known vulnerability claims about the pinned third-party versions are made her
   3. require authenticated ingestion/query whenever traffic crosses the pod/namespace trust boundary;
   4. apply default-deny and narrowly scoped NetworkPolicies;
   5. separate ingestion and query authorization if the API remains networked.
-- Verification: `event-sink/tests/test_server.py` proves token separation and 401 behavior; `tests/helm/test_phase1.py` and full Helm renders prove internal defaults and policy selectors. Still required: live positive/negative connectivity tests under a policy-enforcing CNI. Do not close from render tests alone.
+- Verification: `event-sink/tests/test_server.py` proves missing/equal tokens prevent startup, token separation, and 401 behavior; `tests/helm/test_phase1.py` and full Helm renders prove internal defaults and policy selectors. Still required: live positive/negative connectivity tests under a policy-enforcing CNI. Do not close from render tests alone.
 
 ### SEC-002 — Event sink container is not hardened and uses a mutable runtime image
 
@@ -44,7 +44,7 @@ No known vulnerability claims about the pinned third-party versions are made her
 - Phase 1 implementation: `event-sink/` is a packaged application with a digest-pinned multi-platform Python base; the pod runs as UID/GID 65532 with RuntimeDefault seccomp, no service-account token, no capabilities or privilege escalation, a read-only root filesystem, and PVC-only writes.
 - Impact: the sink may run as root, has a writable filesystem beyond the data need, and can change when the image tag moves. Compromise affects retained telemetry and the namespace network.
 - Remediation: build a minimal project-owned image, pin it by digest for releases, run as non-root, drop all capabilities, disable privilege escalation, use a read-only root filesystem, set seccomp, disable service-account token mounting, and grant write access only to the data volume.
-- Verification: Helm render tests assert the Restricted controls and the Dockerfile pins `python:3.12.11-slim-bookworm@sha256:519591...`. The chart currently retains a tag fallback because no project image has been published. Required for closure: build/scan/publish the project image, record its SBOM/provenance, set `eventSink.image.digest`, and verify admission under Pod Security Restricted.
+- Verification: Helm render tests assert the Restricted controls and the Dockerfile pins `python:3.12.11-slim-bookworm@sha256:519591...`. A pinned GitHub Actions workflow builds, scans, publishes, and attests the image, but has not run yet. Required for closure: complete that run, make the GHCR package public, set `eventSink.image.digest`, and verify admission under Pod Security Restricted.
 
 ### SEC-003 — Unbounded request/query inputs permit denial of service
 
@@ -61,10 +61,10 @@ No known vulnerability claims about the pinned third-party versions are made her
 - Severity: Medium
 - Status: resolved locally on 2026-08-30; pending maintainer review and CI integration.
 - Baseline evidence: complete Falco events were serialized into SQLite; retention was hard-coded to 30 days; the API returned raw records.
-- Resolution: normalized fields are stored and returned by default, raw bodies are opt-in, configured paths are redacted when raw storage is enabled, and retention is chart-configurable from 1–365 days.
+- Resolution: normalized fields are stored and returned by default, raw bodies are opt-in, configured paths are redacted when raw storage is enabled, and retention is chart-configurable from 1–365 days. A versioned startup migration clears unredacted legacy raw bodies, and query-time enforcement ignores raw columns whenever retention is disabled.
 - Impact: command arguments, paths, workload identifiers, or other operational data may be retained and sent to an LLM when a smaller normalized record would suffice.
 - Remediation: define a data classification, allow configurable retention, store normalized fields by default, explicitly opt into raw payload retention, redact configured fields, and document PVC backup/encryption expectations.
-- Verification: event-sink tests prove representative command/output data is absent by default, redacted after explicit opt-in, and expired event/posture rows are purged. Helm tests render the configuration controls.
+- Verification: event-sink tests prove representative command/output data is absent by default, legacy bodies are cleared on upgrade, query-time policy suppresses reintroduced raw values, opted-in bodies are redacted, and expired event/posture rows are purged. Helm tests render the configuration controls.
 
 ### SEC-005 — MCP server inherits broad caller Kubernetes privileges
 
@@ -158,7 +158,7 @@ No known vulnerability claims about the pinned third-party versions are made her
 Run locally on 2026-08-30 from `codex/phase1-event-sink-hardening`:
 
 ```text
-python3 -m unittest discover -s event-sink/tests -v  # 11 tests passed
+python3 -m unittest discover -s event-sink/tests -v  # 15 tests passed
 python3 -m unittest discover -s tests/helm -v        # 6 tests passed
 helm lint charts/k8s-sec-stack                       # 1 chart linted, 0 failed
 helm template ... --namespace security               # no default NodePort

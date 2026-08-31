@@ -54,6 +54,12 @@ All other routes and methods are rejected. Ingest and query routes use separate 
 
 SQLite data is stored on a 1 GiB ReadWriteOnce PVC. Retention is chart-configurable from 1–365 days. Raw Falco bodies are discarded by default; operators may opt in and configure field redaction. The application remains a single process with an in-process database lock, so the RWO volume and SQLite design still constrain availability and scale.
 
+Startup requires distinct ingest and query credentials. Upgrades from schema
+version 0 irreversibly clear legacy raw Falco bodies before serving queries;
+normalized event fields and posture history remain. Credential rotation requires
+a coordinated restart because Kubernetes Secret-backed environment variables do
+not update in running processes. See `docs/event-sink-operations.md`.
+
 ### Posture snapshot CronJob
 
 The CronJob reads selected CRDs with a cluster-scoped, read-only service account, computes counts/scores, and posts them to the event sink daily. It is already configured with a non-root container security context. Its upstream API parsing must be covered by fixtures because CRD shapes can change across operator versions.

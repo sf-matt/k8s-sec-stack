@@ -37,6 +37,7 @@ EVENT_FIELDS = {
 }
 POSTURE_TOOLS = {"trivy", "kubescape", "kyverno"}
 TOKEN_RE = re.compile(r"^[A-Za-z0-9._~+/=-]{16,512}$")
+SCHEMA_VERSION = 1
 
 
 class ApiError(Exception):
@@ -110,13 +111,20 @@ class Settings:
             ingest_token=os.environ.get("EVENT_SINK_INGEST_TOKEN", ""),
             query_token=os.environ.get("EVENT_SINK_QUERY_TOKEN", ""),
         )
-        for name, token in (
-            ("EVENT_SINK_INGEST_TOKEN", settings.ingest_token),
-            ("EVENT_SINK_QUERY_TOKEN", settings.query_token),
-        ):
-            if token and not TOKEN_RE.fullmatch(token):
-                raise ValueError(f"{name} must be 16-512 token-safe characters")
+        settings.validate_auth()
         return settings
+
+    def validate_auth(self) -> None:
+        for name, token in (
+            ("EVENT_SINK_INGEST_TOKEN", self.ingest_token),
+            ("EVENT_SINK_QUERY_TOKEN", self.query_token),
+        ):
+            if not token:
+                raise ValueError(f"{name} is required")
+            if not TOKEN_RE.fullmatch(token):
+                raise ValueError(f"{name} must contain 16-512 token-safe characters")
+        if hmac.compare_digest(self.ingest_token, self.query_token):
+            raise ValueError("EVENT_SINK_INGEST_TOKEN and EVENT_SINK_QUERY_TOKEN must be distinct")
 
 
 def _bounded_string(value: Any, field: str, *, required: bool = False, maximum: int = 512) -> str | None:
@@ -254,6 +262,16 @@ class Store:
                 CREATE INDEX IF NOT EXISTS idx_ps_tool ON posture_snapshots(tool);
                 """
             )
+            schema_version = conn.execute("PRAGMA user_version").fetchone()[0]
+            if schema_version < SCHEMA_VERSION:
+                # Version 0 includes the original sink, which retained complete,
+                # unredacted Falco bodies. They cannot safely inherit the new
+                # opt-in retention policy, so discard them during upgrade.
+                conn.execute("UPDATE events SET raw = '' WHERE raw IS NOT NULL AND raw != ''")
+                conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            if not self.settings.store_raw_events:
+                # Also enforce policy changes from true to false on every start.
+                conn.execute("UPDATE events SET raw = '' WHERE raw IS NOT NULL AND raw != ''")
 
     def purge_old(self) -> tuple[int, int]:
         with self.lock, self.connect() as conn:
@@ -314,7 +332,7 @@ class Store:
                 "time": timestamp, "priority": pri, "rule": event_rule, "namespace": ns,
                 "pod": event_pod, "image": image, "process": process, "tags": json.loads(tags),
             }
-            results.append(json.loads(raw) if raw else normalized)
+            results.append(json.loads(raw) if self.settings.store_raw_events and raw else normalized)
         return results
 
     def query_event_trends(self, days: int) -> dict[str, Any]:
@@ -377,6 +395,7 @@ class EventSinkServer(ThreadingHTTPServer):
     def __init__(self, address: tuple[str, int], store: Store):
         self.store = store
         self.settings = store.settings
+        self.settings.validate_auth()
         self.request_slots = threading.BoundedSemaphore(self.settings.max_concurrent_requests)
         super().__init__(address, Handler)
 

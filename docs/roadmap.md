@@ -25,7 +25,7 @@ Goal: close the highest-risk trust-boundary gaps before expanding features.
 |---|---|---|---|
 | Default event sink and falcosidekick services to ClusterIP | SEC-001, SEC-009 | complete | Default full render has no NodePort; `values-local-dev.yaml` retains explicit optional access |
 | Remove hard-coded release namespace addresses | SEC-006 | complete | Isolated tests and full renders pass for `security` and `alternate-security` |
-| Harden event-sink pod and pin/package its image | SEC-002 | in progress | Restricted render tests pass and packaged source uses a pinned base; local image build is blocked by an unavailable Docker daemon, then publish and set a registry digest before closure |
+| Harden event-sink pod and pin/package its image | SEC-002 | in progress | Restricted render tests and packaged source pass; GHCR build/scan/SBOM/provenance workflow added; publish publicly and set its manifest digest before closure |
 | Add NetworkPolicies for the security namespace flows | SEC-001 | in progress | Render tests verify selectors/default deny; live allow/deny tests under a policy-enforcing CNI remain |
 | Bound/validate sink routes, payloads, and queries | SEC-003 | complete | HTTP boundary suite covers auth, allowlists, schemas, size/range limits, and response bounds |
 | Make raw payload retention and retention days configurable | SEC-004 | complete | normalized-only default, opt-in redaction, and purge tests pass |
