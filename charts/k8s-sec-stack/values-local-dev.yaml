@@ -1,0 +1,10 @@
+# Explicit local-only exposure profile. Do not use on shared or remote clusters.
+falcosidekick:
+  service:
+    type: NodePort
+    nodePort: 32801
+
+eventSink:
+  service:
+    type: NodePort
+    nodePort: 32080

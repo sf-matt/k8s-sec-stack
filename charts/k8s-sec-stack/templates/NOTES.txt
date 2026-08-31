@@ -24,4 +24,7 @@ Check CRD data:
   kubectl get policyreports -A
 
 Next: run the MCP server against this cluster.
+  kubectl -n {{ .Release.Namespace }} port-forward service/mcp-event-sink 8080:8080
+  kubectl -n {{ .Release.Namespace }} get secret mcp-event-sink-auth -o jsonpath='{.data.EVENT_SINK_QUERY_TOKEN}' | base64 --decode
+  Export that value as FALCO_SINK_TOKEN in the MCP process. Treat it as sensitive.
   cd mcp-server && uv run k8s-sec-mcp

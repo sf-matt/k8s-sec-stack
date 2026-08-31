@@ -1,0 +1,16 @@
+[project]
+name = "k8s-sec-event-sink"
+version = "0.1.0"
+description = "Bounded SQLite-backed event and posture sink for k8s-sec-stack"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+
+[project.scripts]
+k8s-sec-event-sink = "k8s_sec_event_sink.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

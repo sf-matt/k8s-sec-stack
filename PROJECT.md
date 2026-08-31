@@ -71,6 +71,13 @@ Known baseline constraints:
 - local setup and README language are Claude-specific even though MCP is intended to be client-neutral;
 - article sources live in a separate blog repository and are not included in this clone.
 
+Phase 1 hardening implemented and lab-verified on `codex/phase1-event-sink-hardening`, pending maintainer review, changes that baseline as follows: the sink and falcosidekick default to `ClusterIP`; release-namespace coupling is removed from their routes; ingest and query tokens are separated; sink inputs, queries, concurrency, and responses are bounded; normalized-only retention is the default; and the sink pod and network boundary are restricted. The project image is publicly available from GHCR and the chart selects its scanned multi-platform manifest by digest. Live Calico allow/deny checks, authentication checks, and Pod Security Restricted admission passed on Kubernetes v1.35.6.
+
+The event-sink authentication boundary fails closed when credentials are missing or
+identical. Schema version 0 upgrades clear legacy raw Falco bodies before queries
+are served. Image publication uses public GHCR with a blocking Trivy scan, SBOM,
+provenance, and a digest-pinned Helm reference.
+
 See `docs/security-review.md` for risk detail and `docs/roadmap.md` for sequencing.
 
 ## Workstreams
@@ -115,5 +122,6 @@ The foundation milestone is complete when:
 | 2026-08-30 | Replace heuristic threat scoring with evidence and confidence. | Current data cannot establish CVE causality or justify automatic KILL recommendations. |
 | 2026-08-30 | License the project under Apache-2.0. | Permissive reuse plus an explicit patent grant fits a Kubernetes infrastructure reference project. |
 | 2026-08-30 | Disclose substantial Claude Code and OpenAI Codex assistance while crediting maintainer validation. | Provenance should be transparent without treating an AI system as a copyright holder or independent auditor. |
+| 2026-08-30 | Separate event-sink ingest and query credentials and discard raw Falco bodies by default. | Producers do not need read access, query clients do not need write access, and normalized evidence reduces sensitive-data retention. |
 
 Add consequential decisions here or in a dedicated ADR under `docs/` when implementation begins.

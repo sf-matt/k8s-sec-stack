@@ -122,6 +122,14 @@ Provisional scope:
 
 Publication gate: Phase 1 and the core of Phase 3 in `docs/roadmap.md` must be complete, and resolved findings must contain verification evidence.
 
+Implementation note (2026-08-31, pending maintainer review): the Phase 1 branch supplies the ClusterIP defaults, separate ingest/query tokens, bounded API, normalized-only retention default, restricted pod context, and NetworkPolicy manifests needed for this section. The scanned project image is public and selected by digest. Live Calico allow/deny checks, authentication checks, and Pod Security Restricted admission passed in the documented lab topology; articles must scope those claims to that environment rather than implying universal CNI coverage.
+
+The same branch now fails startup on missing or reused credentials, clears legacy
+schema-version-0 raw payloads on upgrade, and includes a pinned GHCR workflow for
+blocking image scans, SBOM generation, and provenance. Workflow run `33358389880`
+succeeded, the package is explicitly public, and the chart records the resulting
+multi-platform manifest digest.
+
 ## Claim matrix template
 
 Use this table during each revision. Every technical claim needs evidence or must be softened/removed.

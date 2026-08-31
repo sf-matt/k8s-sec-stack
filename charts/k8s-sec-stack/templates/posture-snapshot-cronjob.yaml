@@ -3,6 +3,9 @@ kind: CronJob
 metadata:
   name: posture-snapshot
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: posture-snapshot
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   schedule: "0 1 * * *"
   concurrencyPolicy: Forbid
@@ -11,6 +14,10 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: posture-snapshot
+            app.kubernetes.io/instance: {{ .Release.Name }}
         spec:
           serviceAccountName: posture-snapshot
           restartPolicy: OnFailure
@@ -20,7 +27,12 @@ spec:
               command: ["python", "/app/snapshot.py"]
               env:
                 - name: FALCO_SINK_URL
-                  value: "http://mcp-event-sink.{{ .Release.Namespace }}.svc.cluster.local:8080"
+                  value: "http://mcp-event-sink:8080"
+                - name: EVENT_SINK_INGEST_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: mcp-event-sink-auth
+                      key: EVENT_SINK_INGEST_TOKEN
               securityContext:
                 runAsNonRoot: true
                 runAsUser: 65534
