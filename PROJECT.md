@@ -71,7 +71,7 @@ Known baseline constraints:
 - local setup and README language are Claude-specific even though MCP is intended to be client-neutral;
 - article sources live in a separate blog repository and are not included in this clone.
 
-Phase 1 hardening implemented on `codex/phase1-event-sink-hardening` and pending maintainer review changes that baseline as follows: the sink and falcosidekick default to `ClusterIP`; release-namespace coupling is removed from their routes; ingest and query tokens are separated; sink inputs, queries, concurrency, and responses are bounded; normalized-only retention is the default; and the sink pod and network boundary are restricted. The project image is publicly available from GHCR and the chart selects its scanned multi-platform manifest by digest. Live CNI connectivity and Pod Security admission verification remain release gates.
+Phase 1 hardening implemented and lab-verified on `codex/phase1-event-sink-hardening`, pending maintainer review, changes that baseline as follows: the sink and falcosidekick default to `ClusterIP`; release-namespace coupling is removed from their routes; ingest and query tokens are separated; sink inputs, queries, concurrency, and responses are bounded; normalized-only retention is the default; and the sink pod and network boundary are restricted. The project image is publicly available from GHCR and the chart selects its scanned multi-platform manifest by digest. Live Calico allow/deny checks, authentication checks, and Pod Security Restricted admission passed on Kubernetes v1.35.6.
 
 The event-sink authentication boundary fails closed when credentials are missing or
 identical. Schema version 0 upgrades clear legacy raw Falco bodies before queries

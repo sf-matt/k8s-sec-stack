@@ -91,8 +91,8 @@ The current correlation axis is a loose combination of namespace, pod/workload c
 
 | Boundary | Data crossing it | Current control | Required direction |
 |---|---|---|---|
-| Falco/falcosidekick → event sink | runtime telemetry | ClusterIP, producer NetworkPolicy, ingest bearer token, schema/size limits | validate live connectivity under a policy-enforcing CNI; use TLS or mTLS if traffic crosses an untrusted network |
-| Snapshot CronJob → event sink | aggregate security posture | ClusterIP, producer NetworkPolicy, ingest bearer token, route/schema/batch limits | validate live connectivity under a policy-enforcing CNI |
+| Falco/falcosidekick → event sink | runtime telemetry | ClusterIP, producer NetworkPolicy, ingest bearer token, schema/size limits | Calico allow/deny boundary verified 2026-08-31; use TLS or mTLS if traffic crosses an untrusted network |
+| Snapshot CronJob → event sink | aggregate security posture | ClusterIP, producer NetworkPolicy, ingest bearer token, route/schema/batch limits | Calico allow/deny boundary verified 2026-08-31 |
 | MCP server → Kubernetes API | cluster inventory and security findings | caller kubeconfig or pod identity | documented least-privilege read-only role |
 | MCP server → event sink | normalized/aggregate runtime evidence | query bearer token plus port-forward or explicitly labeled in-cluster pod | add TLS or a reviewed proxy for remote access; do not expose the plain HTTP service directly |
 | MCP server → agent/model | potentially sensitive cluster evidence | stdio session | minimization, redaction, limits, and operator awareness |
@@ -130,7 +130,7 @@ This makes parser and transport changes testable without changing every skill.
 
 - the packaged event-sink image has not yet been published, so the chart retains a tag fallback until a release digest exists;
 - bearer tokens protect route classes but plain in-cluster HTTP does not provide transport confidentiality;
-- NetworkPolicy behavior depends on a policy-enforcing CNI and still needs live connectivity verification;
+- NetworkPolicy behavior depends on a policy-enforcing CNI; Calico v3.25.0 was verified in one Kubernetes v1.35.6 lab topology, not across all supported CNIs;
 - one replica and one RWO SQLite volume limit availability and scale;
 - raw CRD dictionaries flow directly into tool-specific parsers with no versioned domain model;
 - MCP results remain JSON-in-text without pagination, although the event-sink HTTP API now enforces result and response-size limits;
