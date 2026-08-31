@@ -126,7 +126,7 @@ Implementation note (2026-08-31, pending maintainer review): the Phase 1 branch 
 
 The same branch now fails startup on missing or reused credentials, clears legacy
 schema-version-0 raw payloads on upgrade, and includes a pinned GHCR workflow for
-blocking image scans, SBOM generation, and provenance. Workflow run `33358389880`
+blocking image scans, SBOM generation, and provenance. Post-merge workflow run `33403240549`
 succeeded, the package is explicitly public, and the chart records the resulting
 multi-platform manifest digest.
 

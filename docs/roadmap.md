@@ -32,7 +32,7 @@ Goal: close the highest-risk trust-boundary gaps before expanding features.
 
 Recommended implementation order: service defaults and namespace templating, then pod image/security context, then API validation/auth and NetworkPolicy. Keep each change small enough to review independently.
 
-Implementation and lab evidence (pending maintainer review): `python3 -m unittest discover -s event-sink/tests -v`, `python3 -m unittest discover -s tests/helm -v`, `helm lint charts/k8s-sec-stack`, full `helm template` renders in two namespaces, public workflow run `33358389880`, live Calico policy probes, live auth checks, and Pod Security Restricted admission. Phase 1 is complete in the tested lab topology.
+Implementation and lab evidence: `python3 -m unittest discover -s event-sink/tests -v`, `python3 -m unittest discover -s tests/helm -v`, `helm lint charts/k8s-sec-stack`, full `helm template` renders in two namespaces, post-merge public workflow run `33403240549`, live Calico policy probes, live auth checks, and Pod Security Restricted admission. Phase 1 is complete in the tested lab topology.
 
 ## Phase 2 — Provider-neutral MCP foundation
 

@@ -9,10 +9,11 @@ The `Event sink image` GitHub Actions workflow builds and scans the image before
 publishing multi-platform `linux/amd64` and `linux/arm64` manifests to
 `ghcr.io/sf-matt/k8s-sec-event-sink`. Actions are pinned to immutable commits.
 The published image includes an SBOM and build-provenance attestations. Workflow
-run `33358389880` passed the blocking scan and published the public manifest:
+run `33403240549` passed the blocking scan after merge to `main` and published
+the public manifest:
 
 ```text
-ghcr.io/sf-matt/k8s-sec-event-sink@sha256:ecd8cf86a6284ccaed6a9ee63c363f0d04fa01b65e43c327af01b9a576131479
+ghcr.io/sf-matt/k8s-sec-event-sink@sha256:22c30e95071ea4f14b93e93d61a238b19f6cdef0b3b7c94e5aa46bf3aa523d32
 ```
 
 GitHub Container Registry packages are private on first publication even when

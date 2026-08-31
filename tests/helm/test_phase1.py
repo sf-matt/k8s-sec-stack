@@ -62,7 +62,7 @@ class PhaseOneHelmTest(unittest.TestCase):
         self.assertNotIn('value: "1.048576e+06"', rendered)
 
     def test_published_image_digest_overrides_mutable_tag(self):
-        published_digest = "sha256:ecd8cf86a6284ccaed6a9ee63c363f0d04fa01b65e43c327af01b9a576131479"
+        published_digest = "sha256:22c30e95071ea4f14b93e93d61a238b19f6cdef0b3b7c94e5aa46bf3aa523d32"
         default_render = self.render()
         self.assertIn(
             f'image: "ghcr.io/sf-matt/k8s-sec-event-sink@{published_digest}"',

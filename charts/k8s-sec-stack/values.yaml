@@ -97,9 +97,9 @@ eventSink:
   image:
     repository: ghcr.io/sf-matt/k8s-sec-event-sink
     tag: "0.1.0"
-    # Public multi-platform manifest produced by Event sink image run 33358389880.
+    # Public multi-platform manifest produced from merged main by run 33403240549.
     # The tag remains for discovery; Helm releases use this immutable digest.
-    digest: "sha256:ecd8cf86a6284ccaed6a9ee63c363f0d04fa01b65e43c327af01b9a576131479"
+    digest: "sha256:22c30e95071ea4f14b93e93d61a238b19f6cdef0b3b7c94e5aa46bf3aa523d32"
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
