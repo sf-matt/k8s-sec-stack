@@ -1,27 +1,47 @@
 """MCP server — bridges k8s security CRDs to LLM tools."""
 
-import mcp.server.stdio
-import mcp.types as types
+from mcp import types
 from mcp.server import Server
 
-from k8s_sec_mcp.tools.vulns import list_vuln_reports, list_vuln_summary
-from k8s_sec_mcp.tools.posture import list_compliance_reports, list_policy_violations, list_policy_summary
-from k8s_sec_mcp.tools.runtime import list_runtime_events, list_runtime_trends, list_posture_trends
+from k8s_sec_mcp.contract import (
+    UnknownToolError,
+    apply_tool_contract,
+    error_result,
+    success_result,
+    validate_arguments,
+)
+from k8s_sec_mcp.tools.k8s import (
+    get_pod_status,
+    list_image_registry_signals,
+    list_network_exposure,
+    list_network_policies,
+    list_workloads,
+)
+from k8s_sec_mcp.tools.posture import (
+    list_compliance_reports,
+    list_policy_summary,
+    list_policy_violations,
+)
+from k8s_sec_mcp.tools.runtime import (
+    list_posture_trends,
+    list_runtime_events,
+    list_runtime_trends,
+)
 from k8s_sec_mcp.tools.trivy import (
     list_config_audit,
     list_config_audit_summary,
     list_exposed_secrets,
-    list_rbac_issues,
     list_infra_issues,
+    list_rbac_issues,
 )
-from k8s_sec_mcp.tools.k8s import get_pod_status, list_workloads, list_image_registry_signals, list_network_exposure, list_network_policies
+from k8s_sec_mcp.tools.vulns import list_vuln_reports, list_vuln_summary
 
 app = Server("k8s-sec-mcp")
 
 
 @app.list_tools()
 async def list_tools() -> list[types.Tool]:
-    return [
+    tools = [
         types.Tool(
             name="list_vuln_reports",
             description=(
@@ -32,13 +52,19 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                     "severity": {
                         "type": "string",
                         "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ALL"],
                         "description": "Minimum severity to include",
                     },
-                    "image": {"type": "string", "description": "Filter by image name substring"},
+                    "image": {
+                        "type": "string",
+                        "description": "Filter by image name substring",
+                    },
                 },
                 "required": [],
             },
@@ -53,7 +79,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                     "severity": {
                         "type": "string",
                         "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ALL"],
@@ -99,7 +128,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                     "result": {
                         "type": "string",
                         "enum": ["fail", "warn", "pass", "all"],
@@ -120,12 +152,25 @@ async def list_tools() -> list[types.Tool]:
                 "properties": {
                     "priority": {
                         "type": "string",
-                        "enum": ["EMERGENCY", "ALERT", "CRITICAL", "ERROR", "WARNING", "ALL"],
+                        "enum": [
+                            "EMERGENCY",
+                            "ALERT",
+                            "CRITICAL",
+                            "ERROR",
+                            "WARNING",
+                            "ALL",
+                        ],
                     },
                     "namespace": {"type": "string"},
                     "pod": {"type": "string"},
-                    "rule": {"type": "string", "description": "Falco rule name substring"},
-                    "hours": {"type": "integer", "description": "Restrict to events in the last N hours"},
+                    "rule": {
+                        "type": "string",
+                        "description": "Falco rule name substring",
+                    },
+                    "hours": {
+                        "type": "integer",
+                        "description": "Restrict to events in the last N hours",
+                    },
                     "limit": {"type": "integer", "default": 50},
                 },
                 "required": [],
@@ -141,7 +186,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "days": {"type": "integer", "description": "Rolling window in days (default 7)"},
+                    "days": {
+                        "type": "integer",
+                        "description": "Rolling window in days (default 7, maximum 90)",
+                    },
                 },
                 "required": [],
             },
@@ -162,8 +210,14 @@ async def list_tools() -> list[types.Tool]:
                         "enum": ["trivy", "kubescape", "kyverno", "all"],
                         "description": "Filter to a single tool or return all (default)",
                     },
-                    "namespace": {"type": "string", "description": "Filter to a specific namespace (default all)"},
-                    "days": {"type": "integer", "description": "Rolling window in days (default 30)"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "Filter to a specific namespace (default all)",
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Rolling window in days (default 30, maximum 90)",
+                    },
                 },
                 "required": [],
             },
@@ -178,7 +232,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                     "severity": {
                         "type": "string",
                         "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ALL"],
@@ -199,7 +256,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                     "severity": {
                         "type": "string",
                         "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ALL"],
@@ -219,7 +279,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                 },
                 "required": [],
             },
@@ -235,7 +298,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                     "severity": {
                         "type": "string",
                         "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ALL"],
@@ -271,7 +337,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                 },
                 "required": [],
             },
@@ -296,7 +365,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                 },
                 "required": [],
             },
@@ -311,7 +383,10 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "namespace": {"type": "string", "description": "K8s namespace, or 'all'"},
+                    "namespace": {
+                        "type": "string",
+                        "description": "K8s namespace, or 'all'",
+                    },
                 },
                 "required": [],
             },
@@ -335,59 +410,55 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
     ]
+    return [apply_tool_contract(tool) for tool in tools]
 
 
-@app.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    if name == "list_vuln_reports":
-        result = await list_vuln_reports(**arguments)
-    elif name == "list_vuln_summary":
-        result = await list_vuln_summary(**arguments)
-    elif name == "list_compliance_reports":
-        result = await list_compliance_reports(**arguments)
-    elif name == "list_policy_summary":
-        result = await list_policy_summary()
-    elif name == "list_policy_violations":
-        result = await list_policy_violations(**arguments)
-    elif name == "list_runtime_events":
-        result = await list_runtime_events(**arguments)
-    elif name == "list_runtime_trends":
-        result = await list_runtime_trends(**arguments)
-    elif name == "list_posture_trends":
-        result = await list_posture_trends(**arguments)
-    elif name == "list_config_audit_summary":
-        result = await list_config_audit_summary(**arguments)
-    elif name == "list_config_audit":
-        result = await list_config_audit(**arguments)
-    elif name == "list_exposed_secrets":
-        result = await list_exposed_secrets(**arguments)
-    elif name == "list_rbac_issues":
-        result = await list_rbac_issues(**arguments)
-    elif name == "list_infra_issues":
-        result = await list_infra_issues(**arguments)
-    elif name == "get_pod_status":
-        result = await get_pod_status(**arguments)
-    elif name == "list_workloads":
-        result = await list_workloads(**arguments)
-    elif name == "list_image_registry_signals":
-        result = await list_image_registry_signals()
-    elif name == "list_network_exposure":
-        result = await list_network_exposure(**arguments)
-    elif name == "list_network_policies":
-        result = await list_network_policies(**arguments)
-    else:
-        raise ValueError(f"Unknown tool: {name}")
-
-    return [types.TextContent(type="text", text=result)]
+@app.call_tool(validate_input=False)
+async def call_tool(name: str, arguments: dict) -> types.CallToolResult:
+    handlers = {
+        "list_vuln_reports": list_vuln_reports,
+        "list_vuln_summary": list_vuln_summary,
+        "list_compliance_reports": list_compliance_reports,
+        "list_policy_summary": list_policy_summary,
+        "list_policy_violations": list_policy_violations,
+        "list_runtime_events": list_runtime_events,
+        "list_runtime_trends": list_runtime_trends,
+        "list_posture_trends": list_posture_trends,
+        "list_config_audit_summary": list_config_audit_summary,
+        "list_config_audit": list_config_audit,
+        "list_exposed_secrets": list_exposed_secrets,
+        "list_rbac_issues": list_rbac_issues,
+        "list_infra_issues": list_infra_issues,
+        "get_pod_status": get_pod_status,
+        "list_workloads": list_workloads,
+        "list_image_registry_signals": list_image_registry_signals,
+        "list_network_exposure": list_network_exposure,
+        "list_network_policies": list_network_policies,
+    }
+    try:
+        handler = handlers.get(name)
+        if handler is None:
+            raise UnknownToolError(name)
+        declared = next(tool for tool in await list_tools() if tool.name == name)
+        validate_arguments(declared, arguments)
+        result = await handler(**arguments)
+        return success_result(name, result)
+    # The MCP boundary converts adapter failures to non-secret typed errors.
+    # Cancellation and process-exit signals do not inherit from Exception.
+    except Exception as error:  # noqa: BLE001
+        return error_result(name, error)
 
 
 def main():
     import asyncio
+
     from mcp.server.stdio import stdio_server
 
     async def _run():
         async with stdio_server() as (read_stream, write_stream):
-            await app.run(read_stream, write_stream, app.create_initialization_options())
+            await app.run(
+                read_stream, write_stream, app.create_initialization_options()
+            )
 
     asyncio.run(_run())
 

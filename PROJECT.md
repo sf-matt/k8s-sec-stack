@@ -1,6 +1,6 @@
 # k8s-sec-stack project brief
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
 ## Mission
 
@@ -78,6 +78,18 @@ identical. Schema version 0 upgrades clear legacy raw Falco bodies before querie
 are served. Image publication uses public GHCR with a blocking Trivy scan, SBOM,
 provenance, and a digest-pinned Helm reference.
 
+Phase 2A on `codex/phase2-mcp-contract-corrections`, maintainer-reviewed and
+pending CI, adds application contract `1.0` for all 18 MCP tools. Successful calls preserve
+the complete legacy JSON value in text and expose the same value in a structured
+success envelope. Oversized results fail visibly rather than silently omitting
+security evidence. Typed, bounded error envelopes do not echo caller-controlled
+tool names or upstream exception details. Source provenance and explicit
+`unknown` freshness are present without implying identity correlation. Nested
+tool data remains legacy and field-untyped until later Phase 2 adapter work.
+`list_policy_summary` and `list_image_registry_signals` cannot yet narrow an
+oversized result; bounded operator limit increases are the interim workaround,
+with pagination/filter support planned after Phase 2A.
+
 See `docs/security-review.md` for risk detail and `docs/roadmap.md` for sequencing.
 
 ## Workstreams
@@ -123,5 +135,7 @@ The foundation milestone is complete when:
 | 2026-08-30 | License the project under Apache-2.0. | Permissive reuse plus an explicit patent grant fits a Kubernetes infrastructure reference project. |
 | 2026-08-30 | Disclose substantial Claude Code and OpenAI Codex assistance while crediting maintainer validation. | Provenance should be transparent without treating an AI system as a copyright holder or independent auditor. |
 | 2026-08-30 | Separate event-sink ingest and query credentials and discard raw Falco bodies by default. | Producers do not need read access, query clients do not need write access, and normalized evidence reduces sensitive-data retention. |
+| 2026-09-02 | Preserve complete legacy MCP values on success and fail visibly when a result exceeds the v1 envelope budget. | Silent truncation can hide security evidence from text-only clients; an explicit error is safer and compatibility-preserving for successful calls. |
+| 2026-09-02 | Call Phase 2A an envelope contract, not a fully typed result contract. | The envelope and top-level shapes are enforced, while field-level schemas remain pending normalized adapter work. |
 
 Add consequential decisions here or in a dedicated ADR under `docs/` when implementation begins.

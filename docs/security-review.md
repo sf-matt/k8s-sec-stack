@@ -1,14 +1,23 @@
 # Security review
 
-Review date: 2026-08-30
+Review date: 2026-09-02
 
-Scope: static review of committed baseline plus Phase 1 boundary-hardening changes on `codex/phase1-event-sink-hardening`
+Scope: committed baseline, merged Phase 1 boundary hardening, and Phase 2A MCP
+envelope work on `codex/phase2-mcp-contract-corrections`
 
-Status: Phase 1 implementation and lab verification complete pending maintainer review; not a penetration test or production-readiness certification
+Status: Phase 1 is merged and lab-verified; Phase 2A completed maintainer review
+and is pending CI. This is not a penetration test or production-readiness certification.
 
 ## Executive summary
 
 The Phase 1 branch materially reduces the event-sink boundary: default services are internal, ingest and query credentials are separate, routes and resource use are bounded, raw Falco bodies are discarded by default, and the pod/network manifests are restricted. The scanned project image is public and selected by immutable registry digest. Live Calico allow/deny checks, authentication checks, and Pod Security Restricted admission completed successfully on 2026-08-31, closing the Phase 1 gates. TLS is still required if the plain HTTP service ever crosses an untrusted network. Production use should continue to wait for MCP identity, correlation, broader CI, and end-to-end test work.
+
+Phase 2A adds a provider-neutral MCP envelope with exact legacy values on
+success, fail-visible response limits, bounded safe errors, source provenance,
+and explicit freshness semantics. Nested evidence remains field-untyped, and
+two aggregate tools cannot yet narrow oversized results. The work does not close
+least-privilege identity, correlation, or workflow injection-resistance
+findings.
 
 No known vulnerability claims about the pinned third-party versions are made here; dependency advisories and image contents require a separate, time-bound scan.
 
@@ -95,7 +104,10 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-008 — Automated security regression coverage is insufficient
 
 - Severity: Medium
-- Evidence: Phase 1 adds event-sink and Helm regression suites, but no CI workflow or broad parser/MCP suite is committed. The Kyverno test manifest still references policy YAML under `policies/`, while that directory's generated content is gitignored.
+- Evidence: Phase 1 adds event-sink and Helm regression suites, and Phase 2A
+  adds a focused MCP envelope suite. No workflow runs these suites in CI, CRD
+  parser fixtures remain sparse, and the Kyverno test manifest still references
+  policy YAML under `policies/` while generated content there is gitignored.
 - Impact: parser drift, route-validation regressions, unsafe chart defaults, and broken policy tests can merge undetected.
 - Remediation: add fixture-based parser tests, MCP schema/dispatch tests, event-sink validation tests, Helm lint/render tests, executable Kyverno fixtures, and a minimal kind end-to-end job.
 - Verification: all suites run from a clean clone in CI.
@@ -121,7 +133,10 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-011 — Untrusted cluster content is passed into model context without an injection contract
 
 - Severity: Medium
-- Evidence: Kubernetes labels, report messages, Falco output, and raw event fields are serialized into MCP text responses; workflows do not explicitly instruct every consumer to treat embedded content as data rather than instructions.
+- Evidence: Kubernetes labels, report messages, Falco output, and raw event
+  fields are serialized into MCP responses. Phase 2A documents that those fields
+  are untrusted data and bounds complete results, but workflow-level adversarial
+  evaluations are not implemented.
 - Impact: an attacker able to control workload metadata, process arguments, image labels, report messages, or event ingestion could attempt indirect prompt injection, distort analysis, or encourage unsafe actions.
 - Remediation: return typed/structured fields, minimize raw text, mark provenance, sanitize control characters/oversized values, add workflow rules that tool data is never executable instruction, and create adversarial fixtures. Keep all mutation/containment behind explicit human approval.
 - Verification: evaluation cases containing instruction-like resource names and event output do not alter workflow control or cause unsupported actions.
@@ -142,6 +157,36 @@ No known vulnerability claims about the pinned third-party versions are made her
 - Remediation: create normalized evidence models, resolve owner chains in code, join immutable identifiers where available, apply explicit freshness windows, retain provenance/version metadata, and return `unmatched` instead of guessing.
 - Verification: deterministic cases cover pod recreation, retagging, ReplicaSet ownership, stale reports, and two similar workloads in one namespace.
 
+### SEC-014 — Silent MCP truncation can hide evidence from legacy clients
+
+- Severity: High
+- Status: resolved in Phase 2A implementation; maintainer-reviewed and pending CI.
+- Evidence: the discarded first Phase 2A candidate bounded successful values and
+  exposed truncation only inside `structuredContent.meta`; text-only clients
+  retained the legacy top-level shape but could not detect omitted findings.
+- Impact: a consumer could interpret an incomplete vulnerability, policy, or
+  runtime result as complete and make a false-negative assessment.
+- Resolution: successful v1 responses preserve the complete parsed legacy value
+  in both representations. Record, string, or complete serialized-result budget
+  violations return the typed `response_too_large` error instead of partial data.
+- Verification: contract tests cover record, string, and dual-copy byte limits
+  and assert explicit errors rather than truncated successes.
+
+### SEC-015 — Caller-controlled tool names can bypass error-response limits
+
+- Severity: Medium
+- Status: resolved in Phase 2A implementation; maintainer-reviewed and pending CI.
+- Evidence: the discarded first Phase 2A candidate applied its serialized byte
+  check only to successful results and copied an unadvertised tool name into both
+  error representations.
+- Impact: a hostile oversized name could expand model context and bypass the
+  documented untrusted-string boundary.
+- Resolution: unadvertised names are represented as the fixed value `unknown`;
+  every error is schema-validated and checked against the same configured byte
+  budget, whose minimum is 4096 bytes.
+- Verification: contract tests submit a 100,000-character instruction-like tool
+  name and validate all advertised error envelopes at the minimum budget.
+
 ## Positive controls already present
 
 - MCP tool implementations only call read/list Kubernetes APIs in the reviewed code.
@@ -152,6 +197,9 @@ No known vulnerability claims about the pinned third-party versions are made her
 - Skills explicitly prohibit invented findings and default generated Kyverno policies to Audit unless the user requests Enforce.
 - Phase 1 defaults discard raw Falco bodies, authenticate route classes separately, and bound HTTP resource use.
 - The event-sink pod renders with the Restricted security controls and a default-deny network boundary.
+- Phase 2A returns exact legacy values on success, fails visibly rather than
+  truncating evidence, bounds both success and error envelopes, and does not echo
+  unadvertised tool names or raw exception details.
 
 ## Phase 1 verification record
 
@@ -168,6 +216,36 @@ helm template ... --namespace alternate-security     # no hard-coded .security.s
 Live lab verification used Kubernetes v1.35.6 on Linux/arm64 with Calico node v3.25.0. Rancher local-path provisioner v0.0.37 supplied the default StorageClass; the PVC bound, the public digest-pinned image pulled, and the event sink reached 1/1 Ready with no restarts. Calico allowed the named query-client selector and denied unlabeled and cross-namespace probes. Live auth returned 401/200 as expected. Pod Security `restricted:latest` rejected a privileged control and admitted the real Deployment.
 
 These checks validate the reviewed paths in one lab topology; they are not a penetration test or production certification. `docker build --tag k8s-sec-event-sink:phase1-test event-sink` was attempted locally and could not run because the Docker daemon was unavailable; it is not counted as passing evidence. Post-merge GitHub Actions run `33403240549` supplied the independent multi-platform build and blocking scan evidence, and anonymous registry resolution verified the public manifest digest.
+
+## Phase 2A verification record
+
+Run locally on 2026-09-02 from
+`codex/phase2-mcp-contract-corrections` with Python 3.14.5, MCP Python SDK
+1.29.1, and jsonschema 4.26.0:
+
+```text
+PYTHONPATH=mcp-server/src python -m unittest discover -s mcp-server/tests -v
+# 17 tests passed
+python -m unittest discover -s event-sink/tests -v
+# 15 tests passed
+python -m unittest discover -s tests/helm -v
+# 7 tests passed
+helm lint charts/k8s-sec-stack
+# 1 chart linted, 0 failed
+ruff check ... && ruff format --check ...
+# passed
+```
+
+The MCP suite validates the 18-tool inventory, declared schemas, both trend
+tools' 90-day bound, exact successful legacy equivalence, fail-visible
+record/string/dual-copy limits, bounded error paths, hostile unknown names,
+non-finite JSON, top-level shape errors, timestamp ordering, event-sink 400/422
+rejection versus 429/5xx availability classification, and an in-memory MCP round
+trip. It does not exercise live Kubernetes APIs, restricted RBAC, CRD versions,
+or deterministic correlation. `list_policy_summary` and
+`list_image_registry_signals` still require an operator-approved bounded limit
+increase and MCP restart if their unfilterable complete results exceed a limit;
+pagination and narrowing filters remain planned.
 
 ## Remediation order
 

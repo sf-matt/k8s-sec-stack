@@ -107,6 +107,16 @@ A reader can clone a tagged revision, deploy the supported lab safely, verify ev
 - prompt/skill version tied to the repository tag.
 - clean-clone transcript, tested component versions, readiness timings, and cleanup output.
 
+Phase 2A evidence is maintainer-reviewed and pending CI: `docs/mcp-contract-v1.md` and
+`mcp-server/tests/test_contract.py` define and exercise the provider-neutral
+envelope, exact successful text/structured equivalence, fail-visible response
+limits, bounded errors, adapter provenance, and explicit freshness state. These
+artifacts do not support a claim that nested tool results are fully typed or that
+cross-source evidence is deterministically correlated. They also do not provide
+pagination or filters for `list_policy_summary` and
+`list_image_registry_signals`; an operator-approved bounded limit increase and
+MCP restart is the current workaround for oversized results from those tools.
+
 ## Future Part 3: hardening and operationalization
 
 Provisional scope:
