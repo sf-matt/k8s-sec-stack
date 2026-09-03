@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
 This roadmap orders work by risk and dependency. Status values are `planned`, `in progress`, `blocked`, or `complete`; all items begin as planned.
 
@@ -40,8 +40,9 @@ Goal: support any compliant MCP client without coupling the core to Claude Code 
 
 | Deliverable | Status | Exit evidence |
 |---|---|---|
-| Define stable tool schemas, error envelope, limits, and compatibility policy | planned | versioned contract document and tests |
-| Separate domain models from Kubernetes CRD adapters and return structured content | planned | fixture tests cover supported CRD versions and schemas |
+| Define stable envelope schemas, error envelope, limits, and compatibility policy | complete | implementation, contract document, local tests, maintainer review, and GitHub Actions run `33716480359` passed on pull request #2 |
+| Add pagination or narrowing filters to `list_policy_summary` and `list_image_registry_signals` | planned | oversized aggregate results can be retrieved completely without increasing operator response limits |
+| Define field-level tool schemas and separate domain models from Kubernetes CRD adapters | planned | fixture tests cover supported CRD versions and schemas; current Phase 2A nested data remains explicitly open |
 | Preserve pod UID, container ID, image digest, full owner chain, provenance, and freshness | planned | deterministic correlation tests return matched/unmatched evidence correctly |
 | Publish generic stdio configuration and isolate client examples | planned | clean setup succeeds with generic MCP inspector plus documented clients |
 | Add a secure runtime-event access strategy without required NodePort | planned | tested port-forward/proxy or in-cluster option |

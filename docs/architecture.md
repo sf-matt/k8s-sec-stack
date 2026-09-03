@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified against repository: 2026-08-30 (`codex/phase1-event-sink-hardening`, pending maintainer review)
+Last verified against repository: 2026-09-02 (`codex/phase2-mcp-contract-corrections`, maintainer-reviewed and CI-verified)
 
 ## System context
 
@@ -71,7 +71,22 @@ The CronJob reads selected CRDs with a cluster-scoped, read-only service account
 - the Kubernetes Python client, loading in-cluster configuration first and local kubeconfig second; or
 - authenticated HTTP requests to the event sink configured by `FALCO_SINK_URL` and `FALCO_SINK_TOKEN`.
 
-Tools return JSON encoded as MCP text content. They are logically read-only, but their effective Kubernetes privilege is whatever the selected identity permits.
+Phase 2A keeps the complete legacy JSON value in MCP text content and returns the
+same value in a versioned structured envelope with bounded, typed errors, static
+source provenance, response-generation time, and explicit freshness state.
+Success responses are never silently truncated: values that cannot fit the
+configured record, string, or complete dual-representation byte budget return a
+visible `response_too_large` tool error. `list_policy_summary` and
+`list_image_registry_signals` cannot currently narrow or paginate an oversized
+result; operators may raise the bounded MCP limits and restart the server while
+later Phase 2 work adds retrieval controls. Unadvertised tool names are not
+echoed.
+
+The envelope and top-level array/object shapes are schema-enforced. Nested legacy
+fields are intentionally open until later Phase 2 domain models and CRD fixtures
+exist. The tools remain logically read-only, but their effective Kubernetes
+privilege is whatever the selected identity permits. See
+`docs/mcp-contract-v1.md`.
 
 ### Agent workflow skills
 
@@ -133,6 +148,6 @@ This makes parser and transport changes testable without changing every skill.
 - NetworkPolicy behavior depends on a policy-enforcing CNI; Calico v3.25.0 was verified in one Kubernetes v1.35.6 lab topology, not across all supported CNIs;
 - one replica and one RWO SQLite volume limit availability and scale;
 - raw CRD dictionaries flow directly into tool-specific parsers with no versioned domain model;
-- MCP results remain JSON-in-text without pagination, although the event-sink HTTP API now enforces result and response-size limits;
-- untrusted Kubernetes fields and Falco output cross into model context without a documented injection-resistance contract;
+- MCP results now have a versioned envelope and fail-visible response limits, but no pagination or field-level tool data schemas; `list_policy_summary` and `list_image_registry_signals` also have no narrowing filters, so their only current oversized-result workaround is an operator-approved bounded limit increase and MCP restart;
+- untrusted Kubernetes fields and Falco output still cross into model context; the envelope documents limits and data-versus-instruction handling, but end-to-end injection evaluations remain pending;
 - client-specific skills are currently presented adjacent to the MCP layer, obscuring the host/client/model boundary.
