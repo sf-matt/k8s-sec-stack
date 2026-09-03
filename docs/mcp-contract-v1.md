@@ -1,6 +1,6 @@
 # MCP envelope contract v1
 
-Status: Phase 2A foundation, maintainer-reviewed and pending CI
+Status: Phase 2A foundation, maintainer-reviewed and CI-verified
 Contract version: `1.0`
 Transport: MCP over stdio
 

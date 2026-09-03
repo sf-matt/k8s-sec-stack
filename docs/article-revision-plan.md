@@ -107,7 +107,7 @@ A reader can clone a tagged revision, deploy the supported lab safely, verify ev
 - prompt/skill version tied to the repository tag.
 - clean-clone transcript, tested component versions, readiness timings, and cleanup output.
 
-Phase 2A evidence is maintainer-reviewed and pending CI: `docs/mcp-contract-v1.md` and
+Phase 2A evidence is maintainer-reviewed and CI-verified: `docs/mcp-contract-v1.md` and
 `mcp-server/tests/test_contract.py` define and exercise the provider-neutral
 envelope, exact successful text/structured equivalence, fail-visible response
 limits, bounded errors, adapter provenance, and explicit freshness state. These

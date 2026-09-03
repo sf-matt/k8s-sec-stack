@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified against repository: 2026-09-02 (`codex/phase2-mcp-contract-corrections`, maintainer-reviewed; pending CI)
+Last verified against repository: 2026-09-02 (`codex/phase2-mcp-contract-corrections`, maintainer-reviewed and CI-verified)
 
 ## System context
 

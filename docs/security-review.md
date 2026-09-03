@@ -6,7 +6,7 @@ Scope: committed baseline, merged Phase 1 boundary hardening, and Phase 2A MCP
 envelope work on `codex/phase2-mcp-contract-corrections`
 
 Status: Phase 1 is merged and lab-verified; Phase 2A completed maintainer review
-and is pending CI. This is not a penetration test or production-readiness certification.
+and CI validation. This is not a penetration test or production-readiness certification.
 
 ## Executive summary
 
@@ -161,7 +161,7 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-014 — Silent MCP truncation can hide evidence from legacy clients
 
 - Severity: High
-- Status: resolved in Phase 2A implementation; maintainer-reviewed and pending CI.
+- Status: resolved and verified in Phase 2A maintainer review and CI.
 - Evidence: the discarded first Phase 2A candidate bounded successful values and
   exposed truncation only inside `structuredContent.meta`; text-only clients
   retained the legacy top-level shape but could not detect omitted findings.
@@ -176,7 +176,7 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-015 — Caller-controlled tool names can bypass error-response limits
 
 - Severity: Medium
-- Status: resolved in Phase 2A implementation; maintainer-reviewed and pending CI.
+- Status: resolved and verified in Phase 2A maintainer review and CI.
 - Evidence: the discarded first Phase 2A candidate applied its serialized byte
   check only to successful results and copied an unadvertised tool name into both
   error representations.
@@ -247,6 +247,9 @@ or deterministic correlation. `list_policy_summary` and
 `list_image_registry_signals` still require an operator-approved bounded limit
 increase and MCP restart if their unfilterable complete results exceed a limit;
 pagination and narrowing filters remain planned.
+
+GitHub Actions repository-validation run `33716480359` independently passed the
+Python contracts/regressions and Helm rendering/lint jobs on pull request #2.
 
 ## Remediation order
 

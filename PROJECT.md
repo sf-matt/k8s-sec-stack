@@ -79,7 +79,7 @@ are served. Image publication uses public GHCR with a blocking Trivy scan, SBOM,
 provenance, and a digest-pinned Helm reference.
 
 Phase 2A on `codex/phase2-mcp-contract-corrections`, maintainer-reviewed and
-pending CI, adds application contract `1.0` for all 18 MCP tools. Successful calls preserve
+CI-verified, adds application contract `1.0` for all 18 MCP tools. Successful calls preserve
 the complete legacy JSON value in text and expose the same value in a structured
 success envelope. Oversized results fail visibly rather than silently omitting
 security evidence. Typed, bounded error envelopes do not echo caller-controlled
