@@ -105,9 +105,10 @@ No known vulnerability claims about the pinned third-party versions are made her
 
 - Severity: Medium
 - Evidence: Phase 1 adds event-sink and Helm regression suites, and Phase 2A
-  adds a focused MCP envelope suite. No workflow runs these suites in CI, CRD
-  parser fixtures remain sparse, and the Kyverno test manifest still references
-  policy YAML under `policies/` while generated content there is gitignored.
+  adds a focused MCP envelope suite plus a repository-validation workflow for
+  those Python and Helm checks. Its first PR run remains pending, CRD parser
+  fixtures remain sparse, and the Kyverno test manifest still references policy
+  YAML under `policies/` while generated content there is gitignored.
 - Impact: parser drift, route-validation regressions, unsafe chart defaults, and broken policy tests can merge undetected.
 - Remediation: add fixture-based parser tests, MCP schema/dispatch tests, event-sink validation tests, Helm lint/render tests, executable Kyverno fixtures, and a minimal kind end-to-end job.
 - Verification: all suites run from a clean clone in CI.

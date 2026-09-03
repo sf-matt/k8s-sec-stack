@@ -40,7 +40,7 @@ Goal: support any compliant MCP client without coupling the core to Claude Code 
 
 | Deliverable | Status | Exit evidence |
 |---|---|---|
-| Define stable envelope schemas, error envelope, limits, and compatibility policy | in progress | implementation, contract document, local tests, and maintainer review complete on `codex/phase2-mcp-contract-corrections`; CI remains |
+| Define stable envelope schemas, error envelope, limits, and compatibility policy | in progress | implementation, contract document, local tests, and maintainer review complete on `codex/phase2-mcp-contract-corrections`; repository-validation PR check added and awaiting its first run |
 | Add pagination or narrowing filters to `list_policy_summary` and `list_image_registry_signals` | planned | oversized aggregate results can be retrieved completely without increasing operator response limits |
 | Define field-level tool schemas and separate domain models from Kubernetes CRD adapters | planned | fixture tests cover supported CRD versions and schemas; current Phase 2A nested data remains explicitly open |
 | Preserve pod UID, container ID, image digest, full owner chain, provenance, and freshness | planned | deterministic correlation tests return matched/unmatched evidence correctly |
