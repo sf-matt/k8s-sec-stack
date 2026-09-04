@@ -263,8 +263,8 @@ Python contracts/regressions and Helm rendering/lint jobs on pull request #2.
 ## Phase 2B local verification record
 
 OpenAI Codex implemented the in-progress adapter/Semgrep slice and ran the
-following checks on 2026-09-03. Maintainer review and GitHub Actions validation
-are still required; no new cluster-validation claim is made.
+following checks on 2026-09-03. Maintainer review is still required; no new
+cluster-validation claim is made.
 
 ```text
 python -m unittest discover -s mcp-server/tests -v  # 22 tests passed
@@ -274,6 +274,11 @@ helm lint charts/k8s-sec-stack                       # 1 chart, 0 failed
 ruff check ... && ruff format --check ...            # passed
 semgrep 1.176.0 --config auto --error .              # 336 rules, 67 targets, 0 findings
 ```
+
+Pull request #3 GitHub Actions runs independently passed on 2026-09-03:
+repository validation `33837299927`, Semgrep CE `33837299893`, and event-sink
+build/blocking Trivy scan `33837299956`. Image publication correctly skipped for
+the pull request.
 
 The eight Semgrep exclusions are one deliberately vulnerable demo manifest and
 seven negative Kyverno policy fixtures. Three SQLite query sites use
