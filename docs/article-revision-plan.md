@@ -117,6 +117,13 @@ pagination or filters for `list_policy_summary` and
 `list_image_registry_signals`; an operator-approved bounded limit increase and
 MCP restart is the current workaround for oversized results from those tools.
 
+Phase 2B article evidence is not yet publishable. The in-progress branch adds
+the first fixture-backed adapter and closed field schemas for Trivy vulnerability
+detail/summary while retaining the Phase 2A wire values. Articles may describe
+this as an incremental normalization foundation only after maintainer review and
+CI; they must not imply that all sources are typed or that deterministic
+cross-source correlation is complete.
+
 ## Future Part 3: hardening and operationalization
 
 Provisional scope:

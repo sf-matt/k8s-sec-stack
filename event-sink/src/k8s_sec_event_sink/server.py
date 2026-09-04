@@ -268,7 +268,11 @@ class Store:
                 # unredacted Falco bodies. They cannot safely inherit the new
                 # opt-in retention policy, so discard them during upgrade.
                 conn.execute("UPDATE events SET raw = '' WHERE raw IS NOT NULL AND raw != ''")
-                conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+                # SQLite does not parameterize PRAGMA assignment. The value is a
+                # module-owned integer constant, never request or database data.
+                conn.execute(  # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query, python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
+                    f"PRAGMA user_version = {SCHEMA_VERSION}"
+                )
             if not self.settings.store_raw_events:
                 # Also enforce policy changes from true to false on every start.
                 conn.execute("UPDATE events SET raw = '' WHERE raw IS NOT NULL AND raw != ''")
@@ -322,7 +326,9 @@ class Store:
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         params.append(limit)
         with self.lock, self.connect() as conn:
-            rows = conn.execute(
+            # `where` contains only fixed column/operator fragments assembled
+            # above; every caller-controlled value remains a bound parameter.
+            rows = conn.execute(  # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
                 f"SELECT time, priority, rule, ns, pod, image, process, tags, raw FROM events {where} ORDER BY time DESC LIMIT ?",
                 params,
             ).fetchall()
@@ -372,7 +378,9 @@ class Store:
             clauses.append("(namespace = ? OR namespace IS NULL)")
             params.append(namespace)
         with self.lock, self.connect() as conn:
-            rows = conn.execute(
+            # `clauses` contains only fixed server-owned SQL fragments; caller
+            # values are supplied separately as SQLite parameters.
+            rows = conn.execute(  # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
                 f"""SELECT date(snapped_at), tool, namespace, metric, AVG(value), MIN(labels)
                 FROM posture_snapshots WHERE {' AND '.join(clauses)}
                 GROUP BY date(snapped_at), tool, namespace, metric

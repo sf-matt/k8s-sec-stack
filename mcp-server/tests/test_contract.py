@@ -82,6 +82,12 @@ class ToolDeclarationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_nested_data_schemas_are_explicitly_legacy_and_open(self):
         by_name = {tool.name: tool for tool in self.tools}
+        vuln_schema = by_name["list_vuln_reports"].outputSchema["oneOf"][0][
+            "properties"
+        ]["data"]["items"]
+        self.assertFalse(vuln_schema["additionalProperties"])
+        self.assertIn("vulnerabilities", vuln_schema["required"])
+
         schema = by_name["list_workloads"].outputSchema["oneOf"][0]["properties"]
         self.assertEqual({"type": "object"}, schema["data"]["items"])
         schema = by_name["list_runtime_trends"].outputSchema["oneOf"][0]["properties"]
@@ -90,7 +96,14 @@ class ToolDeclarationTests(unittest.IsolatedAsyncioTestCase):
 
 class ResultContractTests(unittest.IsolatedAsyncioTestCase):
     async def test_success_preserves_exact_legacy_value_and_adds_envelope(self):
-        legacy = [{"namespace": "demo", "name": "report", "vulnerabilities": []}]
+        legacy = [
+            {
+                "namespace": "demo",
+                "name": "report",
+                "image": "example.test/app:1.0",
+                "vulnerabilities": [],
+            }
+        ]
         with patch.object(
             server,
             "list_vuln_reports",

@@ -90,6 +90,14 @@ tool data remains legacy and field-untyped until later Phase 2 adapter work.
 oversized result; bounded operator limit increases are the interim workaround,
 with pagination/filter support planned after Phase 2A.
 
+Phase 2B is in progress on `codex/phase2b-evidence-models`. Its first vertical
+slice introduces provider-neutral evidence dataclasses and a fixture-backed
+Trivy `VulnerabilityReport` adapter. The adapter preserves report/workload
+identity, image digest, scanner version, generation, and observation time while
+the two vulnerability tools retain their Phase 2A JSON values and gain closed
+field-level output schemas. A pinned Semgrep CE workflow provides repository
+SAST; intentionally insecure lab fixtures are explicitly and narrowly excluded.
+
 See `docs/security-review.md` for risk detail and `docs/roadmap.md` for sequencing.
 
 ## Workstreams
@@ -137,5 +145,7 @@ The foundation milestone is complete when:
 | 2026-08-30 | Separate event-sink ingest and query credentials and discard raw Falco bodies by default. | Producers do not need read access, query clients do not need write access, and normalized evidence reduces sensitive-data retention. |
 | 2026-09-02 | Preserve complete legacy MCP values on success and fail visibly when a result exceeds the v1 envelope budget. | Silent truncation can hide security evidence from text-only clients; an explicit error is safer and compatibility-preserving for successful calls. |
 | 2026-09-02 | Call Phase 2A an envelope contract, not a fully typed result contract. | The envelope and top-level shapes are enforced, while field-level schemas remain pending normalized adapter work. |
+| 2026-09-03 | Migrate evidence sources one fixture-backed adapter at a time without changing successful v1 values. | Incremental vertical slices make upstream shape drift testable while preserving the Phase 2A compatibility promise. |
+| 2026-09-03 | Run Semgrep CE with a digest-pinned engine and narrow fixture exclusions. | Source SAST closes a CI visibility gap; known-insecure lab inputs should not mask findings in deployable code. |
 
 Add consequential decisions here or in a dedicated ADR under `docs/` when implementation begins.
