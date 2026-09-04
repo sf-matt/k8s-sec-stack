@@ -147,5 +147,6 @@ The foundation milestone is complete when:
 | 2026-09-02 | Call Phase 2A an envelope contract, not a fully typed result contract. | The envelope and top-level shapes are enforced, while field-level schemas remain pending normalized adapter work. |
 | 2026-09-03 | Migrate evidence sources one fixture-backed adapter at a time without changing successful v1 values. | Incremental vertical slices make upstream shape drift testable while preserving the Phase 2A compatibility promise. |
 | 2026-09-03 | Run Semgrep CE with a digest-pinned engine and narrow fixture exclusions. | Source SAST closes a CI visibility gap; known-insecure lab inputs should not mask findings in deployable code. |
+| 2026-09-03 | Protect `main` with pull requests and the always-running Python, Helm, and Semgrep checks. | Core gates should not be bypassable; a path-filtered workflow must not be globally required because legitimate skips would block unrelated changes. |
 
 Add consequential decisions here or in a dedicated ADR under `docs/` when implementation begins.
