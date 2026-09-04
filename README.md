@@ -1,5 +1,8 @@
 # k8s-sec-stack
 
+[![Repository validation](https://github.com/sf-matt/k8s-sec-stack/actions/workflows/validation.yml/badge.svg)](https://github.com/sf-matt/k8s-sec-stack/actions/workflows/validation.yml)
+[![Semgrep CE](https://github.com/sf-matt/k8s-sec-stack/actions/workflows/semgrep.yml/badge.svg)](https://github.com/sf-matt/k8s-sec-stack/actions/workflows/semgrep.yml)
+[![Event sink image](https://github.com/sf-matt/k8s-sec-stack/actions/workflows/event-sink-image.yml/badge.svg)](https://github.com/sf-matt/k8s-sec-stack/actions/workflows/event-sink-image.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 An opinionated, open-source Kubernetes security reference stack covering posture, vulnerability management, and runtime threat detection—wired together with a provider-neutral MCP server and optional agent workflows.

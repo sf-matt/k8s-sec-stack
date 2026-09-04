@@ -1,9 +1,9 @@
 # Security review
 
-Review date: 2026-09-02
+Review date: 2026-09-03
 
-Scope: committed baseline, merged Phase 1 boundary hardening, and Phase 2A MCP
-envelope work on `codex/phase2-mcp-contract-corrections`
+Scope: committed baseline, merged Phase 1 boundary hardening, Phase 2A MCP
+envelope, and Phase 2B work in progress on `codex/phase2b-evidence-models`
 
 Status: Phase 1 is merged and lab-verified; Phase 2A completed maintainer review
 and CI validation. This is not a penetration test or production-readiness certification.
@@ -96,7 +96,10 @@ No known vulnerability claims about the pinned third-party versions are made her
 ### SEC-007 — Dependency and build reproduction are incomplete
 
 - Severity: Medium
-- Evidence: Python dependencies use open lower bounds, `uv.lock` is gitignored, container images are tag-only, and Helm dependency archives/lock are not committed.
+- Evidence: Python dependencies use open lower bounds, `uv.lock` is gitignored,
+  Helm dependency archives/lock are not committed, and GitHub Dependabot security
+  updates are disabled. The project-owned event-sink base and release references
+  are now digest-pinned, but dependency reproduction remains incomplete.
 - Impact: two installations can resolve different code, complicating vulnerability response, testing, and article reproducibility.
 - Remediation: choose and document a dependency update policy, commit appropriate lock metadata, pin release images by digest, automate SBOM/advisory scanning, and use a controlled dependency-update process.
 - Verification: clean builds resolve identical artifacts and CI records scan results.
@@ -106,9 +109,11 @@ No known vulnerability claims about the pinned third-party versions are made her
 - Severity: Medium
 - Evidence: Phase 1 adds event-sink and Helm regression suites, and Phase 2A
   adds a focused MCP envelope suite plus a repository-validation workflow for
-  those Python and Helm checks. Its first PR run remains pending, CRD parser
-  fixtures remain sparse, and the Kyverno test manifest still references policy
-  YAML under `policies/` while generated content there is gitignored.
+  those Python and Helm checks. Phase 2B adds the first fixture-backed CRD
+  adapter for Trivy VulnerabilityReports and a pinned Semgrep CE workflow. Other
+  CRD parser fixtures remain sparse, and the Kyverno test manifest still references policy
+  YAML under `policies/` while generated content there is gitignored. GitHub has
+  no repository ruleset requiring validation checks on `main`.
 - Impact: parser drift, route-validation regressions, unsafe chart defaults, and broken policy tests can merge undetected.
 - Remediation: add fixture-based parser tests, MCP schema/dispatch tests, event-sink validation tests, Helm lint/render tests, executable Kyverno fixtures, and a minimal kind end-to-end job.
 - Verification: all suites run from a clean clone in CI.
@@ -201,6 +206,10 @@ No known vulnerability claims about the pinned third-party versions are made her
 - Phase 2A returns exact legacy values on success, fails visibly rather than
   truncating evidence, bounds both success and error envelopes, and does not echo
   unadvertised tool names or raw exception details.
+- GitHub secret scanning and push protection are enabled. A digest-pinned Semgrep
+  CE workflow scans source and manifests; only deliberate vulnerable-demo and
+  negative-policy fixtures are excluded. The event-sink image workflow blocks on
+  HIGH/CRITICAL Trivy results and emits SBOM/provenance attestations.
 
 ## Phase 1 verification record
 
@@ -250,6 +259,34 @@ pagination and narrowing filters remain planned.
 
 GitHub Actions repository-validation run `33716480359` independently passed the
 Python contracts/regressions and Helm rendering/lint jobs on pull request #2.
+
+## Phase 2B local verification record
+
+OpenAI Codex implemented the in-progress adapter/Semgrep slice and ran the
+following checks on 2026-09-03. Maintainer review is still required; no new
+cluster-validation claim is made.
+
+```text
+python -m unittest discover -s mcp-server/tests -v  # 22 tests passed
+python -m unittest discover -s event-sink/tests -v  # 15 tests passed
+python -m unittest discover -s tests/helm -v         # 7 tests passed
+helm lint charts/k8s-sec-stack                       # 1 chart, 0 failed
+ruff check ... && ruff format --check ...            # passed
+semgrep 1.176.0 --config auto --error .              # 336 rules, 67 targets, 0 findings
+```
+
+Pull request #3 GitHub Actions runs independently passed on 2026-09-03:
+repository validation `33837299927`, Semgrep CE `33837299893`, and event-sink
+build/blocking Trivy scan `33837299956`. Image publication correctly skipped for
+the pull request.
+
+The eight Semgrep exclusions are one deliberately vulnerable demo manifest and
+seven negative Kyverno policy fixtures. Three SQLite query sites use
+rule-specific suppressions: their interpolated fragments are server-owned
+allowlisted SQL syntax and all caller-controlled values remain bound parameters.
+The Semgrep engine image is immutable, but `--config auto` retrieves an evolving
+Community Registry ruleset; scan output records the rule/target counts, and a
+future reproducibility pass should decide whether to snapshot the rules.
 
 ## Remediation order
 

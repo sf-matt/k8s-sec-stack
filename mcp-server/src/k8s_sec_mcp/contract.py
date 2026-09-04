@@ -18,6 +18,8 @@ from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 from kubernetes.client.exceptions import ApiException
 from mcp import types
 
+from k8s_sec_mcp.models import InvalidSourceDataError
+
 CONTRACT_VERSION = "1.0"
 CONTRACT_DOCUMENT = "docs/mcp-contract-v1.md"
 
@@ -36,10 +38,6 @@ class InvalidArgumentsError(ValueError):
 
 class ResponseLimitError(ValueError):
     """Raised when an exact legacy result cannot fit inside contract limits."""
-
-
-class InvalidSourceDataError(ValueError):
-    """Raised when a handler returns malformed or unsafe JSON data."""
 
 
 @dataclass(frozen=True)
@@ -300,6 +298,73 @@ ERROR_CODES = [
     "internal_error",
 ]
 
+NULLABLE_STRING_SCHEMA = {"type": ["string", "null"]}
+VULNERABILITY_FINDING_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "id": NULLABLE_STRING_SCHEMA,
+        "severity": {
+            "type": "string",
+            "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"],
+        },
+        "resource": NULLABLE_STRING_SCHEMA,
+        "installed": NULLABLE_STRING_SCHEMA,
+        "fixed": {"type": "string"},
+        "title": {"type": "string"},
+    },
+    "required": ["id", "severity", "resource", "installed", "fixed", "title"],
+}
+VULNERABILITY_REPORT_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "namespace": NULLABLE_STRING_SCHEMA,
+        "name": NULLABLE_STRING_SCHEMA,
+        "image": {"type": "string"},
+        "vulnerabilities": {
+            "type": "array",
+            "items": VULNERABILITY_FINDING_SCHEMA,
+        },
+    },
+    "required": ["namespace", "name", "image", "vulnerabilities"],
+}
+VULNERABILITY_SUMMARY_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "image": {"type": "string"},
+        "unfixable": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "id": NULLABLE_STRING_SCHEMA,
+                    "resource": NULLABLE_STRING_SCHEMA,
+                    "severity": {
+                        "type": "string",
+                        "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"],
+                    },
+                },
+                "required": ["id", "resource", "severity"],
+            },
+        },
+        "fixable_count": {"type": "integer", "minimum": 0},
+    },
+    "required": ["image", "unfixable", "fixable_count"],
+}
+FIELD_LEVEL_DATA_SCHEMAS = {
+    "list_vuln_reports": {
+        "type": "array",
+        "items": VULNERABILITY_REPORT_SCHEMA,
+    },
+    "list_vuln_summary": {
+        "type": "array",
+        "items": VULNERABILITY_SUMMARY_SCHEMA,
+    },
+}
+
 
 def apply_tool_contract(tool: types.Tool) -> types.Tool:
     """Add input bounds, a closed argument object, and the v1 envelope schema."""
@@ -340,8 +405,10 @@ def apply_tool_contract(tool: types.Tool) -> types.Tool:
 
 
 def output_schema(tool_name: str) -> dict[str, Any]:
-    """Return the v1 envelope schema; nested legacy data remains intentionally open."""
-    if tool_name in ARRAY_TOOLS:
+    """Return the v1 envelope schema, using field schemas as adapters mature."""
+    if tool_name in FIELD_LEVEL_DATA_SCHEMAS:
+        data_schema = FIELD_LEVEL_DATA_SCHEMAS[tool_name]
+    elif tool_name in ARRAY_TOOLS:
         data_schema: dict[str, Any] = {"type": "array", "items": {"type": "object"}}
     elif tool_name in OBJECT_TOOLS:
         data_schema = {"type": "object"}

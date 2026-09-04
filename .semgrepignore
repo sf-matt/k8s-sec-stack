@@ -1,0 +1,6 @@
+# This manifest is deliberately insecure: it is the lab stimulus used to
+# produce Falco, Kyverno, Trivy, and Kubescape findings.
+demo/vulnerable-workload.yaml
+
+# Negative policy fixtures must violate the controls named in their filenames.
+tests/kyverno/resources/fail-*.yaml

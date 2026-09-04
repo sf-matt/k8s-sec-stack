@@ -1,7 +1,11 @@
 """trivy-operator VulnerabilityReport tools."""
 
 import json
-from kubernetes import client, config as k8s_config
+
+from kubernetes import client
+from kubernetes import config as k8s_config
+
+from k8s_sec_mcp.adapters.trivy import parse_vulnerability_report_list
 
 SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"]
 
@@ -36,38 +40,47 @@ async def list_vuln_reports(
         )
 
     results = []
-    threshold = SEVERITY_ORDER.index(severity) if severity in SEVERITY_ORDER else len(SEVERITY_ORDER)
+    threshold = (
+        SEVERITY_ORDER.index(severity)
+        if severity in SEVERITY_ORDER
+        else len(SEVERITY_ORDER)
+    )
 
-    for item in raw.get("items", []):
-        meta = item.get("metadata", {})
-        report = item.get("report", {})
-        artifact = report.get("artifact", {})
-        img = artifact.get("repository", "") + ":" + artifact.get("tag", "")
+    for report in parse_vulnerability_report_list(raw):
+        img = report.image.legacy_reference
 
         if image and image not in img:
             continue
 
         vulns = []
-        for v in report.get("vulnerabilities", []):
-            sev = v.get("severity", "UNKNOWN")
+        for v in report.findings:
+            sev = v.severity
             if severity != "ALL" and SEVERITY_ORDER.index(sev) > threshold:
                 continue
-            vulns.append({
-                "id": v.get("vulnerabilityID"),
-                "severity": sev,
-                "resource": v.get("resource"),
-                "installed": v.get("installedVersion"),
-                "fixed": v.get("fixedVersion", "no fix"),
-                "title": v.get("title", ""),
-            })
+            vulns.append(
+                {
+                    "id": v.vulnerability_id,
+                    "severity": sev,
+                    "resource": v.resource,
+                    "installed": v.installed_version,
+                    "fixed": (
+                        v.fixed_version if v.fixed_version is not None else "no fix"
+                    ),
+                    "title": v.title,
+                }
+            )
 
         if vulns:
-            results.append({
-                "namespace": meta.get("namespace"),
-                "name": meta.get("name"),
-                "image": img,
-                "vulnerabilities": sorted(vulns, key=lambda v: SEVERITY_ORDER.index(v["severity"])),
-            })
+            results.append(
+                {
+                    "namespace": report.provenance.report_namespace,
+                    "name": report.provenance.report_name,
+                    "image": img,
+                    "vulnerabilities": sorted(
+                        vulns, key=lambda v: SEVERITY_ORDER.index(v["severity"])
+                    ),
+                }
+            )
 
     return json.dumps(results, indent=2)
 
@@ -81,33 +94,46 @@ async def list_vuln_summary(
     api = _k8s_client()
 
     if namespace == "all":
-        raw = api.list_cluster_custom_object(group="aquasecurity.github.io", version="v1alpha1", plural="vulnerabilityreports")
+        raw = api.list_cluster_custom_object(
+            group="aquasecurity.github.io",
+            version="v1alpha1",
+            plural="vulnerabilityreports",
+        )
     else:
-        raw = api.list_namespaced_custom_object(group="aquasecurity.github.io", version="v1alpha1", plural="vulnerabilityreports", namespace=namespace)
+        raw = api.list_namespaced_custom_object(
+            group="aquasecurity.github.io",
+            version="v1alpha1",
+            plural="vulnerabilityreports",
+            namespace=namespace,
+        )
 
-    threshold = SEVERITY_ORDER.index(severity) if severity in SEVERITY_ORDER else len(SEVERITY_ORDER)
+    threshold = (
+        SEVERITY_ORDER.index(severity)
+        if severity in SEVERITY_ORDER
+        else len(SEVERITY_ORDER)
+    )
     by_image: dict[str, dict] = {}
 
-    for item in raw.get("items", []):
-        report = item.get("report", {})
-        artifact = report.get("artifact", {})
-        img = artifact.get("repository", "") + ":" + artifact.get("tag", "")
+    for report in parse_vulnerability_report_list(raw):
+        img = report.image.legacy_reference
 
         if img not in by_image:
             by_image[img] = {"image": img, "unfixable": [], "fixable_count": 0}
 
         seen = {c["id"] for c in by_image[img]["unfixable"]}
 
-        for v in report.get("vulnerabilities", []):
-            sev = v.get("severity", "UNKNOWN")
+        for v in report.findings:
+            sev = v.severity
             if SEVERITY_ORDER.index(sev) > threshold:
                 continue
-            cid = v.get("vulnerabilityID")
+            cid = v.vulnerability_id
             if cid in seen:
                 continue
             seen.add(cid)
-            if not v.get("fixedVersion", ""):
-                by_image[img]["unfixable"].append({"id": cid, "resource": v.get("resource"), "severity": sev})
+            if not v.fixed_version:
+                by_image[img]["unfixable"].append(
+                    {"id": cid, "resource": v.resource, "severity": sev}
+                )
             else:
                 by_image[img]["fixable_count"] += 1
 

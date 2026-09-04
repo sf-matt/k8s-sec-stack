@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified against repository: 2026-09-02 (`codex/phase2-mcp-contract-corrections`, maintainer-reviewed and CI-verified)
+Last verified against repository: 2026-09-03 (`codex/phase2b-evidence-models`, implementation in progress)
 
 ## System context
 
@@ -83,10 +83,14 @@ later Phase 2 work adds retrieval controls. Unadvertised tool names are not
 echoed.
 
 The envelope and top-level array/object shapes are schema-enforced. Nested legacy
-fields are intentionally open until later Phase 2 domain models and CRD fixtures
-exist. The tools remain logically read-only, but their effective Kubernetes
-privilege is whatever the selected identity permits. See
-`docs/mcp-contract-v1.md`.
+fields remain open except for the two Trivy vulnerability tools. Their first
+Phase 2B adapter maps the supported `VulnerabilityReport` `v1alpha1` shape into
+provider-neutral evidence objects while preserving the Phase 2A wire value. It
+retains source/report identity, direct owner references, image digest, scanner
+version, generation, and observation time for later correlation; it does not
+claim that a direct ReplicaSet owner is the complete workload chain. The tools
+remain logically read-only, but their effective Kubernetes privilege is whatever
+the selected identity permits. See `docs/mcp-contract-v1.md`.
 
 ### Agent workflow skills
 
@@ -147,7 +151,7 @@ This makes parser and transport changes testable without changing every skill.
 - bearer tokens protect route classes but plain in-cluster HTTP does not provide transport confidentiality;
 - NetworkPolicy behavior depends on a policy-enforcing CNI; Calico v3.25.0 was verified in one Kubernetes v1.35.6 lab topology, not across all supported CNIs;
 - one replica and one RWO SQLite volume limit availability and scale;
-- raw CRD dictionaries flow directly into tool-specific parsers with no versioned domain model;
+- most raw CRD dictionaries still flow directly into tool-specific parsers; only Trivy `VulnerabilityReport` currently has a fixture-backed adapter and provider-neutral domain model;
 - MCP results now have a versioned envelope and fail-visible response limits, but no pagination or field-level tool data schemas; `list_policy_summary` and `list_image_registry_signals` also have no narrowing filters, so their only current oversized-result workaround is an operator-approved bounded limit increase and MCP restart;
 - untrusted Kubernetes fields and Falco output still cross into model context; the envelope documents limits and data-versus-instruction handling, but end-to-end injection evaluations remain pending;
 - client-specific skills are currently presented adjacent to the MCP layer, obscuring the host/client/model boundary.

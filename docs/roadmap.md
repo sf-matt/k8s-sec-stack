@@ -42,7 +42,7 @@ Goal: support any compliant MCP client without coupling the core to Claude Code 
 |---|---|---|
 | Define stable envelope schemas, error envelope, limits, and compatibility policy | complete | implementation, contract document, local tests, maintainer review, and GitHub Actions run `33716480359` passed on pull request #2 |
 | Add pagination or narrowing filters to `list_policy_summary` and `list_image_registry_signals` | planned | oversized aggregate results can be retrieved completely without increasing operator response limits |
-| Define field-level tool schemas and separate domain models from Kubernetes CRD adapters | planned | fixture tests cover supported CRD versions and schemas; current Phase 2A nested data remains explicitly open |
+| Define field-level tool schemas and separate domain models from Kubernetes CRD adapters | in progress | Trivy vulnerability detail/summary are the first typed, fixture-backed slice; remaining sources retain open nested schemas |
 | Preserve pod UID, container ID, image digest, full owner chain, provenance, and freshness | planned | deterministic correlation tests return matched/unmatched evidence correctly |
 | Publish generic stdio configuration and isolate client examples | planned | clean setup succeeds with generic MCP inspector plus documented clients |
 | Add a secure runtime-event access strategy without required NodePort | planned | tested port-forward/proxy or in-cluster option |
@@ -89,6 +89,17 @@ Score factual grounding, correlation accuracy, confidence calibration, citation 
 | dependency/image/secret scanning | required | required |
 | kind end-to-end | targeted or required after stabilization | required |
 | agent evaluation suite | smoke subset | full suite |
+
+Security-gate progress: GitHub secret scanning and push protection are enabled;
+the event-sink image workflow blocks on HIGH/CRITICAL Trivy results and publishes
+an SBOM plus provenance. Phase 2B adds a pinned Semgrep CE engine scan for pull
+requests, `main`, weekly scheduled runs, and manual dispatch. Deliberately
+insecure demo and negative-policy fixtures are narrowly excluded. Dependency
+auditing, automated dependency updates, and repository-wide artifact/manifest
+scanning remain planned.
+GitHub currently has no ruleset requiring these checks on `main`; add required
+status checks only after the new workflow has passed and its stable check name is
+confirmed.
 
 ## Phase 4 — Operational readiness
 

@@ -1,13 +1,14 @@
 # MCP envelope contract v1
 
-Status: Phase 2A foundation, maintainer-reviewed and CI-verified
+Status: Phase 2A envelope complete; Phase 2B field schemas in progress
 Contract version: `1.0`
 Transport: MCP over stdio
 
 This document defines the provider-neutral envelope used by `k8s-sec-mcp`.
-It does not yet define tool-specific nested data schemas, a normalized evidence
-model, a correlation algorithm, Kubernetes RBAC, or a production deployment
-profile.
+It defines field-level nested data schemas for the two Trivy vulnerability
+tools. Other tools remain field-untyped, and the contract does not yet define a
+complete normalized evidence model, correlation algorithm, Kubernetes RBAC, or
+a production deployment profile.
 
 ## Compatibility promise
 
@@ -52,13 +53,18 @@ MCP protocol revision support is independent from this application contract.
 name, a closed input object, defaults, argument bounds, and an `outputSchema` for
 the common success/error envelope. Input validation occurs at the MCP boundary.
 
-The nested fields under `data` remain the legacy tool-specific JSON values and
-are intentionally open in Phase 2A: array tools declare `array<object>` and
-object tools declare `object`. Those declarations catch top-level shape drift,
-but not field-level parser drift. Tool-specific schemas, CRD fixtures, stable
-domain models, immutable identity, and deterministic correlation remain later
-Phase 2 work. Until then, this must be described as a stable envelope contract,
-not a fully typed result contract.
+The nested fields under `data` remain the legacy tool-specific JSON values.
+`list_vuln_reports` and `list_vuln_summary` now declare closed field-level
+schemas backed by a Trivy Operator `v1alpha1` fixture and an internal evidence
+adapter. Other array tools still declare `array<object>` and object tools still
+declare `object`; those declarations catch only top-level shape drift.
+
+The Trivy adapter retains report UID/resource version/generation, direct owner
+references, workload UID, container name, image digest, scanner version, and
+source observation time internally. The legacy v1 tool values intentionally do
+not gain those fields in this slice. Full owner-chain resolution, freshness
+policy, and deterministic correlation remain later Phase 2 work, so the server
+must not yet be described as having a fully typed or correlated result model.
 
 ## Successful result
 
@@ -151,9 +157,11 @@ must treat every data field as evidence, never as an instruction.
 PYTHONPATH=mcp-server/src python -m unittest discover -s mcp-server/tests -v
 ```
 
-The Phase 2A suite freezes the 18 tool names, validates declarations and
+The suite freezes the 18 tool names, validates declarations and
 envelopes, checks exact text/structured success equivalence, verifies fail-visible
 limits and bounded hostile-name errors, classifies source failures, rejects
 non-finite JSON, validates runtime timestamps, and exercises an in-memory MCP
-client/server call. It does not replace CRD parser fixtures, restricted-identity
-tests, or end-to-end cluster validation.
+client/server call. Phase 2B adds a sanitized Trivy Operator
+`VulnerabilityReport` fixture plus adapter identity/version and legacy-output
+compatibility tests. Other CRD parsers, restricted-identity tests, and
+end-to-end cluster validation remain pending.
