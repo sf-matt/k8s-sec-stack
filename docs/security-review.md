@@ -112,10 +112,14 @@ No known vulnerability claims about the pinned third-party versions are made her
   those Python and Helm checks. Phase 2B adds the first fixture-backed CRD
   adapter for Trivy VulnerabilityReports and a pinned Semgrep CE workflow. Other
   CRD parser fixtures remain sparse, and the Kyverno test manifest still references policy
-  YAML under `policies/` while generated content there is gitignored. GitHub has
-  no repository ruleset requiring validation checks on `main`.
+  YAML under `policies/` while generated content there is gitignored. GitHub
+  ruleset `Protect main` now requires pull requests and the always-running
+  Python, Helm, and Semgrep checks, and prevents deletion and force pushes of
+  `main`.
 - Impact: parser drift, route-validation regressions, unsafe chart defaults, and broken policy tests can merge undetected.
-- Remediation: add fixture-based parser tests, MCP schema/dispatch tests, event-sink validation tests, Helm lint/render tests, executable Kyverno fixtures, and a minimal kind end-to-end job.
+- Remediation: expand fixture-based parser tests, add executable Kyverno
+  fixtures and a minimal kind end-to-end job, then require further stable,
+  always-running checks as they mature.
 - Verification: all suites run from a clean clone in CI.
 
 ### SEC-009 — falcosidekick NodePort expands the network surface
@@ -287,6 +291,26 @@ allowlisted SQL syntax and all caller-controlled values remain bound parameters.
 The Semgrep engine image is immutable, but `--config auto` retrieves an evolving
 Community Registry ruleset; scan output records the rule/target counts, and a
 future reproducibility pass should decide whether to snapshot the rules.
+
+## CI action maintenance and main protection record
+
+OpenAI Codex upgraded the GitHub Actions used by repository validation, Semgrep,
+and event-sink image build/scan to current immutable releases whose JavaScript
+actions use the Node.js 24 runtime. Pull request #4 independently passed on
+2026-09-03: repository validation `33839166281`, Semgrep CE `33839166324`, and
+event-sink build/blocking Trivy scan `33839166307`. All four primary check runs
+reported zero annotations, resolving the observed Node.js 20 and CodeQL v3
+deprecation warnings. Image publication correctly skipped for the pull request.
+
+GitHub repository ruleset `Protect main` (ID `22248066`) is active for the
+default branch. It requires all changes to arrive through a pull request, blocks
+branch deletion and non-fast-forward updates, and requires `Python contracts and
+regressions`, `Helm rendering and lint`, and `Semgrep CE scan` with strict
+up-to-date-branch enforcement. It requires zero approving reviews so the solo
+maintainer can merge after personally reviewing and validating the change. The
+path-filtered event-sink job is deliberately excluded from the global required
+list; its HIGH/CRITICAL Trivy gate still blocks the job whenever relevant paths
+cause it to run. Maintainer review and merge of pull request #4 remain pending.
 
 ## Remediation order
 

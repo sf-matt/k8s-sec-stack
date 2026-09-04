@@ -97,9 +97,12 @@ requests, `main`, weekly scheduled runs, and manual dispatch. Deliberately
 insecure demo and negative-policy fixtures are narrowly excluded. Dependency
 auditing, automated dependency updates, and repository-wide artifact/manifest
 scanning remain planned.
-GitHub currently has no ruleset requiring these checks on `main`; add required
-status checks only after the new workflow has passed and its stable check name is
-confirmed.
+GitHub ruleset `Protect main` is active and requires pull requests plus the
+always-running `Python contracts and regressions`, `Helm rendering and lint`,
+and `Semgrep CE scan` checks against the latest `main`. It also blocks branch
+deletion and force pushes. The path-filtered event-sink image job remains a
+blocking gate whenever it runs, but is not globally required because unrelated
+pull requests legitimately skip it.
 
 ## Phase 4 — Operational readiness
 
