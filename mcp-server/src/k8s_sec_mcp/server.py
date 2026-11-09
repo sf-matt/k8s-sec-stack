@@ -95,15 +95,15 @@ async def list_tools() -> list[types.Tool]:
         types.Tool(
             name="list_compliance_reports",
             description=(
-                "List ClusterComplianceReports from kubescape-operator. "
-                "Returns CIS/NSA/MITRE framework results with pass/fail counts and failing controls."
+                "List workload configuration scan summaries from kubescape-operator. "
+                "Returns per-workload pass/fail counts, failed severities, and failing controls."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "framework": {
+                    "namespace": {
                         "type": "string",
-                        "description": "e.g. 'nsa', 'cis', 'mitre' — omit for all",
+                        "description": "Kubernetes namespace, or 'all'",
                     },
                 },
                 "required": [],
@@ -199,7 +199,8 @@ async def list_tools() -> list[types.Tool]:
             description=(
                 "Trend posture metrics over time from daily snapshots (default 30 days). "
                 "Covers three tools: 'trivy' (vuln counts by severity per namespace), "
-                "'kubescape' (compliance score per framework), 'kyverno' (policy fail/warn/pass per namespace). "
+                "'kubescape' (workload compliance scores per namespace), "
+                "'kyverno' (policy fail/warn/pass per namespace). "
                 "Use to answer: is our vuln count going up? Is compliance improving? Where are new policy violations appearing?"
             ),
             inputSchema={

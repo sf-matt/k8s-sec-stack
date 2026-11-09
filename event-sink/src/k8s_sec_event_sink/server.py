@@ -191,7 +191,15 @@ def validate_event(payload: Any, settings: Settings) -> dict[str, Any]:
     tags = payload.get("tags") or []
     if not isinstance(tags, list) or len(tags) > 64:
         raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, "invalid_payload", "tags must be an array of at most 64 strings")
-    normalized["tags"] = [_bounded_string(tag, "tags[]", required=True, maximum=128) for tag in tags]
+    normalized_tags = []
+    for tag in tags:
+        if not isinstance(tag, str):
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, "invalid_payload", "tags[] must be a string")
+        tag = tag.strip()
+        if not tag:
+            continue
+        normalized_tags.append(_bounded_string(tag, "tags[]", required=True, maximum=128))
+    normalized["tags"] = normalized_tags
     normalized["raw"] = _redact(payload, settings.redacted_fields) if settings.store_raw_events else None
     return normalized
 

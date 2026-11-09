@@ -115,7 +115,7 @@ TREND_MAX_DAYS = 90
 INPUT_DEFAULTS: dict[str, dict[str, Any]] = {
     "list_vuln_reports": {"namespace": "all", "severity": "ALL", "image": ""},
     "list_vuln_summary": {"namespace": "all", "severity": "CRITICAL"},
-    "list_compliance_reports": {"framework": ""},
+    "list_compliance_reports": {"namespace": "all"},
     "list_policy_violations": {"namespace": "all", "result": "fail"},
     "list_runtime_events": {
         "priority": "ALL",
@@ -198,8 +198,8 @@ PROVENANCE: dict[str, list[dict[str, str]]] = {
         {
             "source": "kubescape-operator",
             "transport": "kubernetes",
-            "resource": "clustercompliancereports",
-            "api_version": "aquasecurity.github.io/v1alpha1",
+            "resource": "workloadconfigurationscansummaries",
+            "api_version": "spdx.softwarecomposition.kubescape.io/v1beta1",
         }
     ],
     "list_policy_summary": [

@@ -15,7 +15,7 @@ An opinionated, open-source Kubernetes security reference stack covering posture
 |---|---|---|
 | Runtime threats | [Falco](https://falco.org) + [falcosidekick](https://github.com/falcosecurity/falcosidekick) | Webhook → event sink |
 | Vulnerability management | [trivy-operator](https://github.com/aquasecurity/trivy-operator) | `VulnerabilityReport` / `ConfigAuditReport` CRDs |
-| Posture / compliance | [kubescape-operator](https://github.com/kubescape/kubescape-operator) | `ClusterComplianceReport` CRD |
+| Posture / compliance | [kubescape-operator](https://github.com/kubescape/kubescape-operator) | `WorkloadConfigurationScanSummary` API resources |
 | Policy enforcement | [Kyverno](https://kyverno.io) | `PolicyReport` CRD |
 | Agent interface | `mcp-server/` | Read-only MCP tools over the above evidence sources |
 

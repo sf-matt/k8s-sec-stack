@@ -10,7 +10,10 @@ metadata:
   name: posture-snapshot-reader
 rules:
   - apiGroups: ["aquasecurity.github.io"]
-    resources: ["vulnerabilityreports", "clustercompliancereports"]
+    resources: ["vulnerabilityreports"]
+    verbs: ["get", "list"]
+  - apiGroups: ["spdx.softwarecomposition.kubescape.io"]
+    resources: ["workloadconfigurationscansummaries"]
     verbs: ["get", "list"]
   - apiGroups: ["wgpolicyk8s.io"]
     resources: ["policyreports", "clusterpolicyreports"]

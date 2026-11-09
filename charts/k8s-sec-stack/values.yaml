@@ -3,6 +3,10 @@ falco:
   enabled: true
   driver:
     kind: modern_ebpf
+  collectors:
+    containerEngine:
+      # 0.6.3 can panic while inspecting newer containerd CRI responses.
+      pluginRef: "ghcr.io/falcosecurity/plugins/plugin/container:0.7.5"
   falco:
     json_output: true
     json_include_output_fields_property: true
@@ -41,7 +45,7 @@ falcosidekick:
       cpu: 200m
       memory: 128Mi
 
-trivyOperator:
+trivy-operator:
   enabled: true
   trivy:
     severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
@@ -62,9 +66,15 @@ trivyOperator:
       cpu: 500m
       memory: 512Mi
 
-kubescapeOperator:
+kubescape-operator:
   enabled: true
   clusterName: "local-dev"
+  # Use an explicit posture framework for the self-hosted console. The chart's
+  # generic "security" scan currently passes control IDs as framework names.
+  defaultFrameworks:
+    - nsa
+  operator:
+    triggerSecurityFramework: false
   capabilities:
     continuousScan: enable
   # Reduced for single-node dev cluster

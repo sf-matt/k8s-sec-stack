@@ -13,6 +13,7 @@ data:
     import ssl
     import sys
     from datetime import datetime, timezone
+    from urllib.parse import quote
     from urllib.request import Request, urlopen
 
     SINK_URL   = os.environ.get("FALCO_SINK_URL", "http://mcp-event-sink:8080")
@@ -66,22 +67,43 @@ data:
     def snap_kubescape(now):
         snapshots = []
         try:
-            raw = k8s_get("/apis/aquasecurity.github.io/v1alpha1/clustercompliancereports")
-            for item in raw.get("items", []):
-                name = item.get("metadata", {}).get("name", "")
-                framework = item.get("spec", {}).get("compliance", {}).get("name", name)
-                summary = item.get("status", {}).get("summaryReport", {})
-                passed  = summary.get("passCount", 0)
-                failed  = summary.get("failCount", 0)
+            raw = k8s_get(
+                "/apis/spdx.softwarecomposition.kubescape.io/v1beta1/"
+                "workloadconfigurationscansummaries"
+            )
+            for listed_item in raw.get("items", []):
+                listed_meta = listed_item.get("metadata", {})
+                namespace = listed_meta.get("namespace", "")
+                name = listed_meta.get("name", "")
+                item = k8s_get(
+                    "/apis/spdx.softwarecomposition.kubescape.io/v1beta1/"
+                    f"namespaces/{quote(namespace, safe='')}/"
+                    "workloadconfigurationscansummaries/"
+                    f"{quote(name, safe='')}"
+                )
+                meta = item.get("metadata", {})
+                controls = item.get("spec", {}).get("controls") or {}
+                passed = sum(
+                    1 for control in controls.values()
+                    if control.get("status", {}).get("status") == "passed"
+                )
+                failed = sum(
+                    1 for control in controls.values()
+                    if control.get("status", {}).get("status") == "failed"
+                )
                 total   = passed + failed
                 score   = round(passed / total * 100, 1) if total > 0 else 0.0
                 snapshots.append({
                     "snapped_at": now,
                     "tool": "kubescape",
-                    "namespace": None,
+                    "namespace": meta.get("namespace", "unknown"),
                     "metric": "compliance_score",
                     "value": score,
-                    "labels": {"framework": framework, "pass": passed, "fail": failed},
+                    "labels": {
+                        "workload": meta.get("name", ""),
+                        "pass": passed,
+                        "fail": failed,
+                    },
                 })
             print(f"kubescape: {len(snapshots)} records", flush=True)
         except Exception as e:

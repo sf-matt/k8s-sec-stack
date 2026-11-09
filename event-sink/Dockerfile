@@ -1,5 +1,5 @@
-# Multi-platform manifest digest for python:3.12.14-slim-bookworm, resolved 2026-08-30.
-FROM python:3.12.14-slim-bookworm@sha256:0f5b26b9518d002b6173fd61daad821fa340635ebfec5bba471013f9ca114579
+# Multi-platform manifest digest for python:3.12.16-slim-bookworm, resolved 2026-11-08.
+FROM python:3.12.16-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
 
 ARG SOURCE_DATE_EPOCH=0
 ENV PYTHONDONTWRITEBYTECODE=1 \

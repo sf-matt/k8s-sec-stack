@@ -131,6 +131,20 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(status, 422)
         self.assertEqual(body["error"]["code"], "invalid_payload")
 
+        malformed = dict(EVENT, tags=["container", 7])
+        status, body = self.request("POST", "/events", malformed, token="i" * 24)
+        self.assertEqual(status, 422)
+        self.assertEqual(body["error"]["code"], "invalid_payload")
+
+    def test_blank_falco_tags_are_discarded(self):
+        event = dict(EVENT, tags=["container", "", "   ", "runtime"])
+        status, _ = self.request("POST", "/events", event, token="i" * 24)
+        self.assertEqual(status, 202)
+
+        status, events = self.request("GET", "/events", token="q" * 24)
+        self.assertEqual(status, 200)
+        self.assertEqual(["container", "runtime"], events[0]["tags"])
+
     def test_body_size_is_rejected_before_reading(self):
         connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=2)
         connection.request(

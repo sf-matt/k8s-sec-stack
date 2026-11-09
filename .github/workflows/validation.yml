@@ -44,16 +44,20 @@ jobs:
             mcp-server/src/k8s_sec_mcp/contract.py \
             mcp-server/src/k8s_sec_mcp/models.py \
             mcp-server/src/k8s_sec_mcp/server.py \
+            mcp-server/src/k8s_sec_mcp/tools/posture.py \
             mcp-server/src/k8s_sec_mcp/tools/vulns.py \
             mcp-server/tests/test_contract.py \
+            mcp-server/tests/test_posture_adapter.py \
             mcp-server/tests/test_trivy_adapter.py
           ruff format --check \
             mcp-server/src/k8s_sec_mcp/adapters \
             mcp-server/src/k8s_sec_mcp/contract.py \
             mcp-server/src/k8s_sec_mcp/models.py \
             mcp-server/src/k8s_sec_mcp/server.py \
+            mcp-server/src/k8s_sec_mcp/tools/posture.py \
             mcp-server/src/k8s_sec_mcp/tools/vulns.py \
             mcp-server/tests/test_contract.py \
+            mcp-server/tests/test_posture_adapter.py \
             mcp-server/tests/test_trivy_adapter.py
 
   helm:
