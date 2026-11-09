@@ -27,12 +27,12 @@ dependencies:
   - name: trivy-operator
     version: "0.32.1"
     repository: https://aquasecurity.github.io/helm-charts
-    condition: trivyOperator.enabled
+    condition: trivy-operator.enabled
 
   - name: kubescape-operator
-    version: "1.40.2"
+    version: "1.40.4"
     repository: https://kubescape.github.io/helm-charts
-    condition: kubescapeOperator.enabled
+    condition: kubescape-operator.enabled
 
   - name: kyverno
     version: "3.8.1"

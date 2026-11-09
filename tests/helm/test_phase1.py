@@ -74,12 +74,90 @@ class PhaseOneHelmTest(unittest.TestCase):
         self.assertIn(f'image: "ghcr.io/sf-matt/k8s-sec-event-sink@{digest}"', rendered)
         self.assertNotIn(f'k8s-sec-event-sink:0.1.0"', rendered)
 
+    def test_local_bootstrap_clears_digest_and_uses_loaded_tag(self):
+        rendered = self.render(
+            extra_args=(
+                "--set-string",
+                "eventSink.image.repository=k8s-sec-event-sink",
+                "--set-string",
+                "eventSink.image.tag=0.1.0",
+                "--set-string",
+                "eventSink.image.digest=",
+                "--set-string",
+                "eventSink.image.pullPolicy=Never",
+            )
+        )
+        self.assertIn('image: "k8s-sec-event-sink:0.1.0"', rendered)
+        self.assertIn("imagePullPolicy: Never", rendered)
+
+        bootstrap = (REPO / "hack" / "bootstrap.sh").read_text()
+        self.assertIn("--set-string eventSink.image.digest=", bootstrap)
+        self.assertIn("if dependencies_ready; then", bootstrap)
+        self.assertIn("Using existing lock-pinned chart dependencies", bootstrap)
+        self.assertIn("for attempt in 1 2 3; do", bootstrap)
+        for capability in (
+            "relevancy",
+            "runtimeObservability",
+            "networkPolicyService",
+            "nodeProfileService",
+            "seccompProfileService",
+        ):
+            self.assertIn(
+                f"--set-string kubescape-operator.capabilities.{capability}=disable",
+                bootstrap,
+            )
+
+    def test_falco_uses_container_plugin_with_cri_panic_fix(self):
+        values = (CHART / "values.yaml").read_text()
+        self.assertIn(
+            'pluginRef: "ghcr.io/falcosecurity/plugins/plugin/container:0.7.5"',
+            values,
+        )
+
+    def test_operator_values_use_dependency_names(self):
+        chart = (CHART / "Chart.yaml").read_text()
+        values = (CHART / "values.yaml").read_text()
+        notes = (CHART / "templates" / "NOTES.txt").read_text()
+
+        for dependency in ("trivy-operator", "kubescape-operator"):
+            self.assertIn(f"condition: {dependency}.enabled", chart)
+            self.assertIn(f"\n{dependency}:\n", values)
+            self.assertIn(f'index .Values "{dependency}"', notes)
+
+        self.assertNotIn("\ntrivyOperator:\n", values)
+        self.assertNotIn("\nkubescapeOperator:\n", values)
+        self.assertIn('version: "1.40.4"', chart)
+        self.assertIn("  defaultFrameworks:\n    - nsa", values)
+        self.assertIn("    triggerSecurityFramework: false", values)
+
+    def test_kubescape_namespace_is_created_when_enabled(self):
+        rendered = self.render()
+        self.assertIn(
+            "kind: Namespace\nmetadata:\n  name: kubescape",
+            rendered,
+        )
+
+        disabled = self.render(extra_args=("--set", "kubescape-operator.enabled=false"))
+        self.assertNotIn("kind: Namespace\nmetadata:\n  name: kubescape", disabled)
+
     def test_network_policy_limits_sink_to_named_producers_and_query_clients(self):
         rendered = self.render()
         self.assertIn("name: mcp-event-sink-default-deny", rendered)
         self.assertIn("name: falcosidekick-boundary", rendered)
         self.assertIn("app.kubernetes.io/name: posture-snapshot", rendered)
         self.assertIn('k8s-sec-stack.io/event-sink-query: "true"', rendered)
+
+    def test_posture_snapshot_reads_actual_kubescape_resources(self):
+        rendered = self.render()
+        self.assertIn(
+            "spdx.softwarecomposition.kubescape.io/v1beta1/",
+            rendered,
+        )
+        self.assertIn("workloadconfigurationscansummaries", rendered)
+        self.assertNotIn(
+            '"tool": "kubescape",\n                    "namespace": None',
+            rendered,
+        )
 
     def test_explicit_local_profile_can_render_nodeport(self):
         rendered = self.render(extra_args=("-f", str(CHART / "values-local-dev.yaml")))

@@ -7,11 +7,11 @@ Components enabled:
 {{- if .Values.falcosidekick.enabled }}
   ✓ falcosidekick → {{ .Values.falcosidekick.config.webhook.address }}
 {{- end }}
-{{- if .Values.trivyOperator.enabled }}
-  ✓ trivy-operator (VulnerabilityReport, ConfigAuditReport CRDs)
+{{- if (index .Values "trivy-operator").enabled }}
+  ✓ trivy-operator (vulnerability, config-audit, and cluster-compliance CRDs)
 {{- end }}
-{{- if .Values.kubescapeOperator.enabled }}
-  ✓ kubescape-operator (ClusterComplianceReport CRDs)
+{{- if (index .Values "kubescape-operator").enabled }}
+  ✓ kubescape-operator (WorkloadConfigurationScanSummary resources)
 {{- end }}
 {{- if .Values.kyverno.enabled }}
   ✓ Kyverno (PolicyReport CRDs)
@@ -20,7 +20,8 @@ Components enabled:
 Check CRD data:
   kubectl get vulnerabilityreports -A
   kubectl get clusterconfigauditreports -A
-  kubectl get clustercompliancereports -A
+  kubectl get clustercompliancereports -A  # Trivy Operator
+  kubectl get workloadconfigurationscansummaries -A
   kubectl get policyreports -A
 
 Next: run the MCP server against this cluster.

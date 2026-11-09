@@ -1,7 +1,10 @@
-"""kubescape ClusterComplianceReport and Kyverno PolicyReport tools."""
+"""Kubescape workload posture and Kyverno PolicyReport tools."""
 
 import json
-from kubernetes import client, config as k8s_config
+
+from kubernetes import client
+from kubernetes import config as k8s_config
+from kubernetes.client.exceptions import ApiException
 
 
 def _k8s_client() -> client.CustomObjectsApi:
@@ -12,43 +15,69 @@ def _k8s_client() -> client.CustomObjectsApi:
     return client.CustomObjectsApi()
 
 
-async def list_compliance_reports(framework: str = "") -> str:
+async def list_compliance_reports(namespace: str = "all") -> str:
     api = _k8s_client()
     raw = api.list_cluster_custom_object(
-        group="aquasecurity.github.io",
-        version="v1alpha1",
-        plural="clustercompliancereports",
+        group="spdx.softwarecomposition.kubescape.io",
+        version="v1beta1",
+        plural="workloadconfigurationscansummaries",
     )
 
     results = []
-    for item in raw.get("items", []):
-        meta = item.get("metadata", {})
-        name = meta.get("name", "")
+    for listed_item in raw.get("items", []):
+        listed_meta = listed_item.get("metadata", {})
+        item_namespace = listed_meta.get("namespace", "")
 
-        if framework and framework.lower() not in name.lower():
+        if namespace != "all" and item_namespace != namespace:
             continue
 
-        spec = item.get("spec", {})
-        status = item.get("status", {})
-        counts = status.get("summary", {})
-        summary_report = status.get("summaryReport", {})
+        item = api.get_namespaced_custom_object(
+            group="spdx.softwarecomposition.kubescape.io",
+            version="v1beta1",
+            namespace=item_namespace,
+            plural="workloadconfigurationscansummaries",
+            name=listed_meta.get("name", ""),
+        )
+        meta = item.get("metadata", {})
+        item_namespace = meta.get("namespace", "")
 
-        results.append({
-            "name": name,
-            "framework": spec.get("compliance", {}).get("name", name),
-            "pass": counts.get("passCount", 0),
-            "fail": counts.get("failCount", 0),
-            "failing_controls": [
-                {
-                    "id": c.get("id"),
-                    "name": c.get("name"),
-                    "severity": c.get("severity"),
-                    "failed_resources": c.get("totalFail", 0),
-                }
-                for c in summary_report.get("controlCheck", [])
-                if c.get("totalFail", 0) > 0
-            ],
-        })
+        spec = item.get("spec", {})
+        labels = meta.get("labels", {})
+        controls = spec.get("controls") or {}
+        passed = sum(
+            1
+            for control in controls.values()
+            if control.get("status", {}).get("status") == "passed"
+        )
+        failed = sum(
+            1
+            for control in controls.values()
+            if control.get("status", {}).get("status") == "failed"
+        )
+
+        results.append(
+            {
+                "namespace": item_namespace,
+                "kind": labels.get("kubescape.io/workload-kind", ""),
+                "workload": labels.get(
+                    "kubescape.io/workload-name", meta.get("name", "")
+                ),
+                "wlid": meta.get("annotations", {}).get("kubescape.io/wlid", ""),
+                "pass": passed,
+                "fail": failed,
+                "failed_by_severity": spec.get("severities") or {},
+                "failing_controls": [
+                    {
+                        "id": control_id,
+                        "severity": control.get("severity", {}).get(
+                            "severity", "Unknown"
+                        ),
+                    }
+                    for control_id, control in controls.items()
+                    if control.get("status", {}).get("status") == "failed"
+                ],
+            }
+        )
 
     return json.dumps(results, indent=2)
 
@@ -79,10 +108,12 @@ async def list_policy_summary() -> str:
             group="kyverno.io", version="v1", plural="clusterpolicies"
         )
         modes = {
-            item["metadata"]["name"]: item.get("spec", {}).get("validationFailureAction", "audit").lower()
+            item["metadata"]["name"]: item.get("spec", {})
+            .get("validationFailureAction", "audit")
+            .lower()
             for item in cp_raw.get("items", [])
         }
-    except Exception:
+    except ApiException:
         modes = {}
 
     results = [
@@ -93,7 +124,9 @@ async def list_policy_summary() -> str:
             "pass": c["pass"],
             "warn": c["warn"],
         }
-        for policy, c in sorted(counts.items(), key=lambda x: x[1]["fail"], reverse=True)
+        for policy, c in sorted(
+            counts.items(), key=lambda x: x[1]["fail"], reverse=True
+        )
     ]
 
     return json.dumps(results, indent=2)
@@ -139,15 +172,17 @@ async def list_policy_violations(
             r_result = r.get("result", "")
             if result != "all" and r_result != result:
                 continue
-            violations.append({
-                "namespace": meta.get("namespace", "cluster"),
-                "policy": r.get("policy"),
-                "rule": r.get("rule"),
-                "severity": r.get("severity", ""),
-                "result": r_result,
-                "message": r.get("message", ""),
-                "resource": resource_name,
-                "kind": resource_kind,
-            })
+            violations.append(
+                {
+                    "namespace": meta.get("namespace", "cluster"),
+                    "policy": r.get("policy"),
+                    "rule": r.get("rule"),
+                    "severity": r.get("severity", ""),
+                    "result": r_result,
+                    "message": r.get("message", ""),
+                    "resource": resource_name,
+                    "kind": resource_kind,
+                }
+            )
 
     return json.dumps(violations, indent=2)
